@@ -314,3 +314,4 @@ html[data-theme='dark'],html[data-theme='coastal-dark']{--shadow:none}
 .review-composer{width:100%}.review-composer h2{margin:0}
 .submission-success h2{color:var(--primary)}
 .data-sync-controls{margin-top:24px;border-top:1px solid var(--line,#d8d3de);padding-top:16px}
+.route-source-note{margin:16px 2px;color:var(--muted);font-size:.82rem;line-height:1.6}.route-source-note a{color:var(--primary);text-decoration:underline;text-underline-offset:3px}

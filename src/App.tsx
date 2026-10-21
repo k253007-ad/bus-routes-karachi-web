@@ -8,6 +8,7 @@ import { pathId, savedFavorites } from './inputSafety'
 import { sharePage } from './sharing'
 import { watchSystemTheme } from './systemTheme'
 import { installPressFeedback } from './pressFeedback'
+import reviewedRoutes from './routeUpdates2026.json'
 
 type Language = 'en' | 'ur' | 'mixed'
 type Theme = 'light' | 'dark' | 'system' | 'coastal-light' | 'coastal-dark'
@@ -336,6 +337,11 @@ function StopDetail({ id }: { id: string }) {
   return <><PageHeader title="Bus Stop" action={<FavoriteButton kind="stops" id={id} />} /><main id="main-content" className="screen content-screen"><div className="detail-hero"><span className="detail-icon"><Icons name="pin" size={32} /></span><div><small>Bus stop</small><h1>{nameOf(stop, language)}</h1>{language !== 'en' && <p>{stop.name}</p>}</div></div><div className="list-heading"><h2>Routes at this Stop</h2><span>{routes.length} buses</span></div><div className="route-list">{routes.length ? routes.map(route => <RouteCard key={route.id} route={route} />) : <p className="empty-state">No routes are listed for this stop.</p>}</div><AppLink href="/stops" className="text-link">Choose another stop</AppLink></main></>
 }
 
+function RouteSourceNote({ id }: { id: string }) {
+  const source = reviewedRoutes.changes.find(change => change.id === id)
+  return source ? <p className="route-source-note">Updated from <a href={source.sourceUrl} target="_blank" rel="noopener noreferrer">SMTA route information</a>, checked 22 October 2026. Published coverage includes stops and areas; boarding points may differ. Confirm your journey locally.</p> : null
+}
+
 function RouteDetail({ id }: { id: string }) {
   const { data, language } = useApp()
   const route = data.routeById.get(id)
@@ -343,11 +349,13 @@ function RouteDetail({ id }: { id: string }) {
   const first = data.stopById.get(route.firstStop)
   const last = data.stopById.get(route.lastStop)
   const count = ids(data.stopsOnRoute[id]).length
+  const source = reviewedRoutes.changes.find(change => change.id === id)
   return <>
     <PageHeader title="Bus Details" action={<a className="topbar-home" href="#route-map">Map</a>} />
     <main id="main-content" className="screen content-screen">
       <section className="route-detail-card"><div className="detail-card-top"><span>Route Details</span><FavoriteButton kind="routes" id={id} /></div><div className="route-identity"><img src={routeImage(route)} alt={`${typeName(route.type)} illustration`} /><div><h1>{nameOf(route, language)}</h1>{route.urdu && language === 'en' && <p lang="ur" dir="rtl">{route.urdu}</p>}<span className="type-pill"><Icons name="bus" size={16} />{typeName(route.type)}</span></div></div></section>
-      <section className="journey-panel"><h2>Route Journey</h2><div className="journey-point"><span><Icons name="pin" /></span><div><small>Starting Point</small><strong>{nameOf(first, language)}</strong></div></div><div className="journey-line" /><div className="journey-point end"><span><Icons name="pin" /></span><div><small>Destination</small><strong>{nameOf(last, language)}</strong></div></div><AppLink href={`/route/${id}/stops`} className="wide-button secondary">View All {count} Stops</AppLink></section>
+      <section className="journey-panel"><h2>Route Journey</h2><div className="journey-point"><span><Icons name="pin" /></span><div><small>Starting Point</small><strong>{nameOf(first, language)}</strong></div></div><div className="journey-line" /><div className="journey-point end"><span><Icons name="pin" /></span><div><small>Destination</small><strong>{nameOf(last, language)}</strong></div></div><AppLink href={`/route/${id}/stops`} className="wide-button secondary">View {count} {source?.publishedCoverage ? 'Stops & Areas' : 'Stops'}</AppLink></section>
+      <RouteSourceNote id={id} />
       <section className="detail-actions" aria-label="Route actions"><AppLink href={`/route/${id}/reviews`}><Icons name="star" />Reviews</AppLink><AppLink href={`/feedback?type=route&route=${encodeURIComponent(id)}`}><Icons name="feedback" />Report Issue</AppLink><button type="button" onClick={() => sharePage(route.name)}><Icons name="share" />Share</button></section>
       <GoogleRouteMap key={route.id} route={route} data={data} />
     </main>
@@ -359,7 +367,7 @@ function RouteStops({ id }: { id: string }) {
   const route = data.routeById.get(id)
   if (!route) return <NotFound />
   const stops = ids(data.stopsOnRoute[id]).map(stopId => data.stopById.get(stopId)).filter((stop): stop is Stop => Boolean(stop))
-  return <><PageHeader title="Route Stops" action={<button className="topbar-home" type="button" onClick={() => sharePage(`${route.name} stops`)}>Share</button>} /><main id="main-content" className="screen content-screen"><div className="route-stops-heading"><img src={routeImage(route)} alt="" /><div><small>Route</small><h1>{nameOf(route, language)}</h1></div></div><div className="list-heading"><h2>All Stops</h2><span>{stops.length} stops</span></div><div className="stop-list-grid">{stops.map((stop, index) => <div key={stop.id} className="numbered-stop"><span>{index + 1}</span><StopCard stop={stop} routeId={id} /></div>)}</div></main></>
+  return <><PageHeader title="Route Stops" action={<button className="topbar-home" type="button" onClick={() => sharePage(`${route.name} stops`)}>Share</button>} /><main id="main-content" className="screen content-screen"><div className="route-stops-heading"><img src={routeImage(route)} alt="" /><div><small>Route</small><h1>{nameOf(route, language)}</h1></div></div><RouteSourceNote id={id} /><div className="list-heading"><h2>Listed Stops &amp; Areas</h2><span>{stops.length} listed</span></div><div className="stop-list-grid">{stops.map((stop, index) => <div key={stop.id} className="numbered-stop"><span>{index + 1}</span><StopCard stop={stop} routeId={id} /></div>)}</div></main></>
 }
 
 function FavoritesPage() {
@@ -388,7 +396,7 @@ function MapPage({ id }: { id: string }) {
 function InfoPage({ kind }: { kind: 'about' | 'privacy' | 'data' | 'share' | 'contact' }) {
   const { data } = useApp()
   const title = { about: 'About', privacy: 'Privacy', data: 'View Data', share: 'Share App', contact: 'Contact Us' }[kind]
-  return <><PageHeader title={title} /><main id="main-content" className="screen content-screen"><article className="info-card"><h1>{title}</h1>{kind === 'about' && <><p>Konsi Bus Karachi helps people find routes and stops across the city. This website follows the Android app’s public screens and uses its original bus artwork.</p><p>Find buses between stops, browse by type, view every stop on a route, and save the places you use often.</p><p>Routes can update from the original app's database when you are online. This is not a live timetable or vehicle tracker. Confirm important journeys locally because services can change.</p></>}{kind === 'privacy' && <><p>Route searches run in your browser using the bundled data. Favorites, language, and theme are stored in this browser’s local storage.</p><p>Browsing does not require sign-in, and the app does not track your location. Sending a report or route suggestion creates an anonymous Firebase session. Your message and a session identifier are sent to the project team; route suggestions are reviewed before publication. Reviews are sent to the original app's reviews service and may be public, with an installation identifier used to limit repeated submissions. Opening Google Maps or your email app uses those services’ own privacy policies.</p></>}{kind === 'data' && <><p><strong>{data.routes.length}</strong> routes and <strong>{data.stops.length}</strong> stops are available in the current route data.</p><p>The bundled route and stop files can be downloaded below. They contain names and route connections, not live positions or times.</p><div className="settings-links"><a href="/data/routes.json" download>Routes data</a><a href="/data/stops.json" download>Stops data</a></div><DataSyncControls /></>}{kind === 'share' && <><p>Share Konsi Bus Karachi with another commuter.</p><button className="wide-button" type="button" onClick={() => sharePage('Konsi Bus Karachi')}>Share App</button></>}{kind === 'contact' && <><p>Found an error or have a question? Email the project team.</p><a className="wide-button" href="mailto:droidclics@gmail.com">Email Droid Clics</a></>}</article></main></>
+  return <><PageHeader title={title} /><main id="main-content" className="screen content-screen"><article className="info-card"><h1>{title}</h1>{kind === 'about' && <><p>Konsi Bus Karachi helps people find routes and stops across the city. This website follows the Android app’s public screens and uses its original bus artwork.</p><p>Find buses between stops, browse by type, view every stop on a route, and save the places you use often.</p><p>Routes can update from the original app's database when you are online. This is not a live timetable or vehicle tracker. Confirm important journeys locally because services can change.</p></>}{kind === 'privacy' && <><p>Route searches run in your browser using the bundled data. Favorites, language, and theme are stored in this browser’s local storage.</p><p>Browsing does not require sign-in, and the app does not track your location. Sending a report or route suggestion creates an anonymous Firebase session. Your message and a session identifier are sent to the project team; route suggestions are reviewed before publication. Reviews are sent to the original app's reviews service and may be public, with an installation identifier used to limit repeated submissions. Opening Google Maps or your email app uses those services’ own privacy policies.</p></>}{kind === 'data' && <><p><strong>{data.routes.length}</strong> routes and <strong>{data.stops.length}</strong> stops are available in the current route data.</p><p>Selected public-service routes were checked against <a href="https://smta.gos.pk/route-map" target="_blank" rel="noopener noreferrer">SMTA route information</a> on 22 October 2026. Other routes retain the existing community dataset. Published coverage includes stops and areas, not live positions or guaranteed schedules.</p><p>The bundled route and stop files can be downloaded below. They contain names and route connections, not live positions or times.</p><div className="settings-links"><a href="/data/routes.json" download>Routes data</a><a href="/data/stops.json" download>Stops data</a></div><DataSyncControls /></>}{kind === 'share' && <><p>Share Konsi Bus Karachi with another commuter.</p><button className="wide-button" type="button" onClick={() => sharePage('Konsi Bus Karachi')}>Share App</button></>}{kind === 'contact' && <><p>Found an error or have a question? Email the project team.</p><a className="wide-button" href="mailto:droidclics@gmail.com">Email Droid Clics</a></>}</article></main></>
 }
 
 function ContributionPage({ type, routeId }: { type: 'route' | 'feedback' | 'experience'; routeId?: string }) {
@@ -409,7 +417,7 @@ function ReviewsPage({ id }: { id: string }) {
 function DataSyncControls() {
   const [status, setStatus] = useState(getDataSyncStatus)
   useEffect(() => subscribeDataSync(() => setStatus(getDataSyncStatus())), [])
-  const label = status.phase === 'checking' ? 'Checking for route updates?' : status.phase === 'offline' ? 'Using saved routes. Connect to the internet to check for updates.' : status.source === 'online' ? 'Route information is up to date.' : 'Using saved route information.'
+  const label = status.phase === 'checking' ? 'Checking for route updates...' : status.phase === 'offline' ? 'Using saved routes. Connect to the internet to check for updates.' : status.source === 'online' ? 'Online route information checked.' : 'Using saved route information.'
   return <div className="data-sync-controls"><p role="status">{label}</p>{status.updatedAt && <p>Last updated: {new Date(status.updatedAt).toLocaleString()}</p>}<button type="button" className="outline-button" disabled={status.phase === 'checking'} onClick={() => void refreshData()}>Check for Updates</button></div>
 }
 

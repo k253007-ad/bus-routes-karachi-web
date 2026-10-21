@@ -10,3 +10,7 @@ dist/
 
 # Sanitized configuration template only.
 !.env.example
+.route-backups/
+
+__pycache__/
+*.pyc

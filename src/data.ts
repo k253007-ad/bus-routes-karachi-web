@@ -1,5 +1,7 @@
 import { requestJson } from './backend/http'
 import { firebaseConfig } from './backend/config'
+import { mergeRouteUpdates, type VerifiedRouteUpdates } from './routeUpdates'
+import verified2026 from './routeUpdates2026.json'
 
 export type Route = {
   id: string
@@ -94,11 +96,15 @@ export function findDirectRoutes(data: TransitData, from: string, to: string): R
 }
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>
-type StoreOptions = { request?: (url: string) => Promise<unknown>; storage?: () => StorageLike | undefined; now?: () => number }
+type StoreOptions = { request?: (url: string) => Promise<unknown>; storage?: () => StorageLike | undefined; now?: () => number; routeUpdates?: VerifiedRouteUpdates }
 const validVersion = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 
 /** Dependencies can be replaced for deterministic offline and version-race checks. */
 export function createTransitStore(options: StoreOptions = {}) {
+  const parseSnapshot = (raw: RawTransitSnapshot) => {
+    const base = normalizeTransitData(raw)
+    return options.routeUpdates ? normalizeTransitData(mergeRouteUpdates(raw, options.routeUpdates)) : base
+  }
   const request = options.request || requestJson
   const now = options.now || Date.now
   const storage = options.storage || (() => typeof localStorage === 'undefined' ? undefined : localStorage)
@@ -117,7 +123,7 @@ export function createTransitStore(options: StoreOptions = {}) {
       if (!saved || saved.length > 8_000_000) return
       const cache: unknown = JSON.parse(saved)
       if (!isRecord(cache) || cache.schema !== 1 || !validVersion(cache.version) || !validVersion(cache.updatedAt) || cache.updatedAt > now() + 300_000 || !isRecord(cache.raw)) return
-      const parsed = normalizeTransitData(cache.raw as RawTransitSnapshot)
+      const parsed = parseSnapshot(cache.raw as RawTransitSnapshot)
       remoteVersion = cache.version
       status = { phase: 'current', source: 'saved', updatedAt: cache.updatedAt }
       return parsed
@@ -132,7 +138,7 @@ export function createTransitStore(options: StoreOptions = {}) {
     initial = Promise.all([
       request('/data/routes.json'), request('/data/stops.json'), request('/data/stops_on_a_route.json'),
     ]).then(([routes, stops, stopsOnRoute]) => {
-      data = normalizeTransitData({ routes, stops, stopsOnRoute })
+      data = parseSnapshot({ routes, stops, stopsOnRoute })
       return data
     }).finally(() => { initial = undefined })
     return initial
@@ -154,7 +160,7 @@ export function createTransitStore(options: StoreOptions = {}) {
         const [routes, stops, stopsOnRoute] = await Promise.all([
           request(endpoint('route_list')), request(endpoint('stop_list')), request(endpoint('stops_on_a_route')),
         ])
-        const next = normalizeTransitData({ routes, stops, stopsOnRoute })
+        const next = parseSnapshot({ routes, stops, stopsOnRoute })
         const after = await request(endpoint('db_version'))
         if (after !== before) throw new Error('Transit data changed during download')
         const updatedAt = now()
@@ -179,5 +185,5 @@ export function createTransitStore(options: StoreOptions = {}) {
   }
 }
 
-const store = createTransitStore()
+const store = createTransitStore({ routeUpdates: verified2026 })
 export const { loadData, refreshData, getDataSyncStatus, subscribeData, subscribeDataSync } = store

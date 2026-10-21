@@ -24,7 +24,7 @@ Set the project root directory to `website`. The included `vercel.json` selects 
 - `public/images/`: artwork converted from Android VectorDrawables. Run `python scripts/convert_android_vectors.py` to regenerate it.
 - `public/data/`: local route snapshot. Run `python refresh_data.py` to refresh the public dataset after validation.
 
-The local data contains 65 routes and 571 stops as of 18 October 2026. It is not a live timetable or vehicle position feed. Saved items and display preferences stay on the device. The website and Android app share direct Firebase contribution forms, route updates, and the reviews client. Contributions are not queued offline. Live submissions need a Firebase Web key and the coordinated security-rule migration; reviews need the owner to restore HTTPS/CORS. See [BACKEND.md](BACKEND.md) for the verified service status. The in-page map needs a Maps key; without one it offers a Google Maps link.
+The local data contains 66 route entries and 586 stops/areas after the SMTA review on 22 October 2026. It is not a live timetable or vehicle position feed. Saved items and display preferences stay on the device. The website and Android app share direct Firebase contribution forms, route updates, and the reviews client. Contributions are not queued offline. Live submissions need a Firebase Web key and the coordinated security-rule migration; reviews need the owner to restore HTTPS/CORS. See [BACKEND.md](BACKEND.md) for the verified service status. The in-page map needs a Maps key; without one it offers a Google Maps link.
 
 ## Google Maps directions
 
@@ -58,3 +58,18 @@ layout. `src/pressFeedback.ts` handles bounded, delegated press effects without
 React animation-frame updates. It cleans up when animations finish, the app
 unmounts, or the system requests reduced motion. No animation library is needed.
 The existing bus SVGs and route/search behavior are preserved.
+
+## Reviewed 2026 route corrections
+
+See [ROUTE_UPDATES_2026.md](ROUTE_UPDATES_2026.md) for sources, exact changes and
+limitations. The app retains the community/private-bus data and adds reviewed
+SMTA corrections. `src/routeUpdates2026.json` is the versioned correction set;
+`src/routeUpdates.ts` applies it to bundled, cached and online data. This prevents
+the older Firebase snapshot from removing Route 14 or restoring stale termini.
+Corrections deliberately take precedence for the listed IDs until reviewed again.
+
+`python scripts/apply_route_updates.py` updates local data and derives every
+lookup index. `python refresh_data.py` fetches a version-consistent Firebase
+snapshot, reapplies the corrections and rebuilds indexes. A pre-change ZIP stays
+in ignored `.route-backups/`. The correction file records previous rows/sequences
+for review. No production database is modified by these scripts.

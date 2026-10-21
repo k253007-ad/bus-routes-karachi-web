@@ -33,8 +33,8 @@ function remote(raw = fixture(), versions = [10, 10], calls: string[] = []) {
 test('bundled production snapshot is coherent and derives the full reverse index', async () => {
   const load = async (name: string) => JSON.parse(await readFile(new URL(`../public/data/${name}.json`, import.meta.url), 'utf8'))
   const data = normalizeTransitData({ routes: await load('routes'), stops: await load('stops'), stopsOnRoute: await load('stops_on_a_route') })
-  assert.equal(data.routes.length, 65)
-  assert.equal(data.stops.length, 571)
+  assert.equal(data.routes.length, 66)
+  assert.equal(data.stops.length, 586)
   for (const route of data.routes) {
     for (const stop of data.stopsOnRoute[route.id].split(', ')) assert.ok(data.routesOnStop[stop].split(', ').includes(route.id))
   }
