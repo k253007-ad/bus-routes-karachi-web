@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import type { AnchorHTMLAttributes, FormEvent, ReactNode } from 'react'
 import { busTypes, ids, loadData, loadPairs, routeImage, typeName } from './data'
 import type { Route, Stop, TransitData } from './data'
@@ -57,6 +57,10 @@ function nameOf(item: Route | Stop | undefined, language: Language): string {
   return language !== 'en' && item.urdu ? item.urdu : item.name
 }
 
+function routeCountLabel(count: number) {
+  return `${count} route${count === 1 ? '' : 's'}`
+}
+
 function Icons({ name, size = 23 }: { name: string; size?: number }) {
   const paths: Record<string, ReactNode> = {
     home: <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />,
@@ -75,6 +79,7 @@ function Icons({ name, size = 23 }: { name: string; size?: number }) {
     feedback: <><path d="M4 4h16v13H8l-4 3z" /><path d="M12 7v5m0 2v.1" /></>,
     data: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></>,
     globe: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" /></>,
+    check: <path d="m5 12 4 4L19 6" />,
   }
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name] || paths.info}</svg>
 }
@@ -92,15 +97,16 @@ function PageHeader({ title, action }: { title: string; action?: ReactNode }) {
 
 const tabs = [
   { href: '/', label: 'Home', icon: 'home' },
+  { href: '/plan', label: 'Plan Trip', icon: 'route' },
   { href: '/buses', label: 'Buses', icon: 'bus' },
-  { href: '/favorites', label: 'Favorites', icon: 'star' },
-  { href: '/settings', label: 'Settings', icon: 'settings' },
+  { href: '/stops', label: 'Stops', icon: 'pin' },
+  { href: '/favorites', label: 'Saved', icon: 'star' },
 ]
 
 function BottomNav() {
   const path = location.pathname
   return <nav className="bottom-nav" aria-label="Main sections">{tabs.map(tab => {
-    const active = tab.href === '/' ? path === '/' : path === tab.href || path.startsWith(tab.href + '/') || (tab.href === '/buses' && path.startsWith('/route/'))
+    const active = tab.href === '/' ? path === '/' : path === tab.href || path.startsWith(tab.href + '/') || (tab.href === '/buses' && path.startsWith('/route/')) || (tab.href === '/stops' && path.startsWith('/stop/'))
     return <AppLink href={tab.href} key={tab.href} aria-current={active ? 'page' : undefined}>
       <span className="bottom-icon"><Icons name={tab.icon} size={25} /></span><span>{tab.label}</span>
     </AppLink>
@@ -118,7 +124,7 @@ function RouteCard({ route, trip }: { route: Route; trip?: { from: Stop; to: Sto
   const { data, language } = useApp()
   const first = data.stopById.get(route.firstStop)
   const last = data.stopById.get(route.lastStop)
-  return <article className="route-card">
+  return <article className="route-card motion-reveal">
     <AppLink href={`/route/${encodeURIComponent(route.id)}`} className="route-card-main">
       <span className="bus-thumb"><img src={routeImage(route)} alt="" loading="lazy" /></span>
       <span className="route-card-text"><strong>{nameOf(route, language)}</strong><small><Icons name="bus" size={15} /> {typeName(route.type)}</small>{trip ? <span className="route-card-journey">{nameOf(trip.from, language)} → {nameOf(trip.to, language)}</span> : <span className="route-card-journey">{nameOf(first, language)} → {nameOf(last, language)}</span>}</span>
@@ -127,10 +133,29 @@ function RouteCard({ route, trip }: { route: Route; trip?: { from: Stop; to: Sto
   </article>
 }
 
+function DetailedRouteCard({ route }: { route: Route }) {
+  const { data, language } = useApp()
+  const first = data.stopById.get(route.firstStop)
+  const last = data.stopById.get(route.lastStop)
+  const stopCount = ids(data.stopsOnRoute[route.id]).length
+  return <article className="detailed-route-card motion-reveal">
+    <AppLink href={`/route/${encodeURIComponent(route.id)}`} className="detailed-route-link">
+      <span className="detailed-route-art"><img src={routeImage(route)} alt="" loading="lazy" /></span>
+      <span className="detailed-route-content">
+        <span className="detailed-route-type">{typeName(route.type)}</span>
+        <strong className="detailed-route-name">{nameOf(route, language)}</strong>
+        {stopCount > 0 && <span className="detailed-route-count">{stopCount} {stopCount === 1 ? 'stop' : 'stops'} listed</span>}
+      </span>
+      <span className="detailed-route-journey"><span className="detailed-route-point"><small>From</small><strong>{nameOf(first, language)}</strong></span><span className="detailed-route-arrow" aria-hidden="true">→</span><span className="detailed-route-point"><small>To</small><strong>{nameOf(last, language)}</strong></span></span>
+    </AppLink>
+    <FavoriteButton kind="routes" id={route.id} />
+  </article>
+}
+
 function StopCard({ stop, routeId }: { stop: Stop; routeId?: string }) {
   const { data, language } = useApp()
   const route = routeId ? data.routeById.get(routeId) : undefined
-  return <article className="stop-card">
+  return <article className="stop-card motion-reveal">
     <AppLink href={`/stop/${stop.id}`} className="stop-card-main">
       {route ? <img src={routeImage(route)} alt="" loading="lazy" /> : <span className="stop-marker"><Icons name="pin" /></span>}
       <strong>{nameOf(stop, language)}</strong>
@@ -139,29 +164,42 @@ function StopCard({ stop, routeId }: { stop: Stop; routeId?: string }) {
   </article>
 }
 
-function FeaturePanel({ title, icon, image, button, href }: { title: string; icon: string; image: string; button: string; href: string }) {
-  return <section className="feature-panel"><h2><Icons name={icon} />{title}</h2><img src={`/images/${image}`} alt="" loading="lazy" /><AppLink className="wide-button" href={href}>{button}</AppLink></section>
-}
-
 function Dashboard() {
-  const { data } = useApp()
+  const { data, language } = useApp()
+  const [query, setQuery] = useState('')
+  const search = useDeferredValue(query.trim().toLocaleLowerCase())
+  const results = useMemo(() => search ? {
+    routes: data.routes.filter(route => `${route.name} ${route.urdu} ${route.id}`.toLocaleLowerCase().includes(search)).slice(0, 4),
+    stops: data.stops.filter(stop => `${stop.name} ${stop.urdu}`.toLocaleLowerCase().includes(search)).slice(0, 3),
+  } : { routes: [], stops: [] }, [data, search])
   return <>
-    <PageHeader title="DashBoard" action={<AppLink className="topbar-home" href="/settings">Settings</AppLink>} />
+    <PageHeader title="Karachi Bus Routes" action={<AppLink className="topbar-home" href="/settings"><Icons name="settings" size={19} /> Settings</AppLink>} />
     <main id="main-content" className="screen dashboard">
       <section className="dashboard-hero">
-        <img src="/images/img_busses_banner.svg" alt="Karachi bus types" className="dashboard-banner" />
-        <h1>Bus Routes Karachi</h1><p>Bus Route App</p>
-        <div className="stats-row"><AppLink href="/buses"><Icons name="bus" /><strong>{data.routes.length}</strong><span>Routes</span></AppLink><AppLink href="/stops"><Icons name="data" /><strong>{data.stops.length}</strong><span>Stops</span></AppLink></div>
+        <div className="dashboard-welcome">
+          <h1>Find your bus in Karachi</h1>
+          <p>Choose two stops to plan a trip, or look up a bus by name.</p>
+          <div className="hero-actions"><AppLink className="wide-button" href="/plan"><Icons name="route" size={20} /> Plan a Trip</AppLink><AppLink className="wide-button secondary" href="/buses"><Icons name="bus" size={20} /> Browse Buses</AppLink></div>
+        </div>
+        <div className="dashboard-stage" role="img" aria-label="Illustrations of Karachi buses on a city route">
+          <svg className="stage-route" viewBox="0 0 720 170" preserveAspectRatio="none" aria-hidden="true"><path d="M18 127C117 127 103 31 230 31S359 133 478 91 604 28 704 28" /><circle cx="18" cy="127" r="7" /><circle cx="704" cy="28" r="7" /></svg>
+          <div className="stage-buildings" aria-hidden="true" />
+          <div className="stage-road" aria-hidden="true" />
+          <img className="stage-bus stage-bus-metro" src="/images/ic_greenline.svg" alt="" />
+          <img className="stage-bus stage-bus-red" src="/images/ic_red.svg" alt="" />
+          <img className="stage-bus stage-bus-coach" src="/images/ic_coach.svg" alt="" />
+        </div>
+        <div className="network-summary"><span><strong>{data.routes.length}</strong> bus routes</span><span className="summary-dot" aria-hidden="true" /><span><strong>{data.stops.length}</strong> stops</span><span className="network-caption">Route information for Karachi commuters</span></div>
       </section>
       <div className="dashboard-content">
-        <div className="community-message"><span aria-hidden="true">♥</span><div><strong>Made by Bus Lovers ❤️</strong><small>Community-driven data for Karachi commuters</small></div></div>
-        <section className="feature-panel"><h2><Icons name="bus" />Find by Bus Type</h2><div className="bus-type-strip">{busTypes.map(type => <AppLink href={`/buses/${type.id}`} key={type.id} aria-label={type.name}><img src={`/images/${type.image}`} alt="" /><span>{type.name}</span></AppLink>)}</div><AppLink className="wide-button" href="/buses">See All Buses</AppLink></section>
-        <FeaturePanel title="Plan a Route" icon="route" image="start_stop_poll.svg" button="Get Bus Suggestions" href="/plan" />
-        <FeaturePanel title="Add Missing Route" icon="plus" image="start_stop_poll.svg" button="Contribute a Route" href="/add-route" />
-        <FeaturePanel title="Buses at a Stop" icon="pin" image="img_buses_on_route.svg" button="Find Buses at Stop" href="/stops" />
-        <section className="feature-panel"><h2><Icons name="data" />More Options</h2><div className="quick-grid">{[
-          ['/settings', 'Settings', 'settings'], ['/contact', 'Contact', 'mail'], ['/feedback', 'Feedback', 'feedback'], ['/about', 'About', 'info'], ['/feedback?type=route', 'Route Data Issues', 'pin'], ['/experience', 'Share Experience', 'feedback'], ['/share', 'Share App', 'share'], ['/data', 'View Data', 'data'],
-        ].map(([href, label, icon]) => <AppLink href={href} key={href}><Icons name={icon} /><span>{label}</span></AppLink>)}</div></section>
+        <section className="home-search" aria-labelledby="home-search-title">
+          <div className="home-section-heading"><div><h2 id="home-search-title">Search Buses &amp; Stops</h2><p>Type a route name, bus number, or stop.</p></div></div>
+          <label className="search-field home-search-field"><Icons name="search" /><span className="sr-only">Search buses and stops</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Try Green Line or Saddar" autoComplete="off" /></label>
+          {query.trim() ? <div className="home-search-results" aria-live="polite">{results.routes.map(route => <AppLink key={route.id} href={`/route/${encodeURIComponent(route.id)}`}><span className="result-icon"><Icons name="bus" size={18} /></span><span><strong>{nameOf(route, language)}</strong><small>{typeName(route.type)} route</small></span><span className="result-arrow" aria-hidden="true">›</span></AppLink>)}{results.stops.map(stop => <AppLink key={stop.id} href={`/stop/${encodeURIComponent(stop.id)}`}><span className="result-icon"><Icons name="pin" size={18} /></span><span><strong>{nameOf(stop, language)}</strong><small>Bus stop</small></span><span className="result-arrow" aria-hidden="true">›</span></AppLink>)}{!results.routes.length && !results.stops.length && <p className="home-no-results">No match yet. Try a shorter name or a different spelling.</p>}</div> : <div className="home-search-links"><AppLink href="/buses">See all buses</AppLink><AppLink href="/stops">See all stops</AppLink></div>}
+        </section>
+        <section className="home-types" aria-labelledby="home-types-title"><div className="home-section-heading"><div><h2 id="home-types-title">Browse by Bus Type</h2><p>Recognize the bus? Pick its type to see routes.</p></div><AppLink href="/buses">All buses</AppLink></div><div className="type-grid home-type-grid">{busTypes.map(type => <AppLink href={`/buses/${type.id}`} className="type-card motion-reveal" key={type.id}><img src={`/images/${type.image}`} alt="" loading="lazy" /><strong>{type.name}</strong><small>{routeCountLabel(data.routes.filter(route => route.type === type.id).length)}</small></AppLink>)}</div></section>
+        <section className="home-more" aria-labelledby="home-more-title"><h2 id="home-more-title">More Ways to Explore</h2><div className="home-more-grid"><AppLink href="/stops"><Icons name="pin" /><span><strong>Find a Bus Stop</strong><small>See which buses stop there</small></span></AppLink><AppLink href="/favorites"><Icons name="star" /><span><strong>Saved Places</strong><small>Your favorite routes and stops</small></span></AppLink></div></section>
+        <div className="home-footer-links"><AppLink href="/add-route">Add a Missing Route</AppLink><AppLink href="/feedback">Report a Problem</AppLink><AppLink href="/about">About This Site</AppLink></div>
       </div>
     </main>
   </>
@@ -170,15 +208,23 @@ function Dashboard() {
 function BusList({ type }: { type?: string }) {
   const { data, language } = useApp()
   const [query, setQuery] = useState('')
-  const routes = useMemo(() => data.routes.filter(route => (!type || route.type === type) && (!query || `${route.name} ${route.urdu} ${route.id}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()))), [data.routes, type, query])
+  const [cardView, setCardView] = useState<'detailed' | 'classic'>(() => stored('brk-web-bus-card-view', 'detailed'))
+  const search = query.trim().toLocaleLowerCase()
+  const routes = useMemo(() => data.routes.filter(route => (!type || route.type === type) && (!search || `${route.name} ${route.urdu} ${route.id}`.toLocaleLowerCase().includes(search))), [data.routes, type, search])
+  function changeCardView(view: 'detailed' | 'classic') {
+    setCardView(view)
+    localStorage.setItem('brk-web-bus-card-view', JSON.stringify(view))
+  }
   return <>
     <PageHeader title={type ? typeName(type) : 'All Buses'} />
     <main id="main-content" className="screen content-screen">
-      <div className="screen-intro"><h1>{type ? typeName(type) : 'All Buses'}</h1><p>{type ? `Explore ${typeName(type).toLowerCase()} routes across Karachi.` : 'Choose a bus type or search all routes.'}</p></div>
-      {!type && <section className="type-grid" aria-label="Bus types">{busTypes.map(item => <AppLink href={`/buses/${item.id}`} className="type-card" key={item.id}><img src={`/images/${item.image}`} alt="" loading="lazy" /><strong>{item.name}</strong><small>{data.routes.filter(route => route.type === item.id).length} routes</small></AppLink>)}</section>}
-      <div className="quick-links"><AppLink href="/plan"><Icons name="route" />Plan a Route</AppLink><AppLink href="/stops"><Icons name="pin" />Buses at a Stop</AppLink></div>
-      <section className="list-section"><div className="list-heading"><h2>{type ? `${typeName(type)} Routes` : 'All Routes'}</h2><span>{routes.length} routes</span></div><label className="search-field"><Icons name="search" /><span className="sr-only">Search buses</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search by bus name or number" autoComplete="off" /></label>
-        <div className="route-list">{routes.length ? routes.map(route => <RouteCard key={route.id} route={route} />) : <div className="empty-state">No buses match your search. Try another name or number.</div>}</div>
+      <div className="screen-intro"><h1>{type ? typeName(type) : 'Find a Bus'}</h1><p>{type ? `Explore ${typeName(type).toLowerCase()} routes across Karachi.` : 'Search by route name or choose the bus you recognize.'}</p></div>
+      <label className="search-field bus-search-field"><Icons name="search" /><span className="sr-only">Search buses</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Try Green Line or bus number" autoComplete="off" /></label>
+      {!type && !search && <section className="type-grid" aria-label="Bus types">{busTypes.map(item => <AppLink href={`/buses/${item.id}`} className="type-card motion-reveal" key={item.id}><img src={`/images/${item.image}`} alt="" loading="lazy" /><strong>{item.name}</strong><small>{routeCountLabel(data.routes.filter(route => route.type === item.id).length)}</small></AppLink>)}</section>}
+      {!search && <div className="quick-links"><AppLink href="/plan"><Icons name="route" />Plan a Trip</AppLink><AppLink href="/stops"><Icons name="pin" />Find a Stop</AppLink></div>}
+      <section className="list-section bus-route-section"><div className="list-heading"><h2>{search ? 'Matching Buses' : type ? `${typeName(type)} Routes` : 'All Routes'}</h2><span>{routeCountLabel(routes.length)}</span></div>
+        <div className="bus-view-switch" role="group" aria-label="Bus card view"><button type="button" aria-pressed={cardView === 'detailed'} onClick={() => changeCardView('detailed')}>Detailed</button><button type="button" aria-pressed={cardView === 'classic'} onClick={() => changeCardView('classic')}>Classic</button></div>
+        <div className={`route-list ${cardView === 'detailed' ? 'detailed-route-list' : ''}`}>{routes.length ? routes.map(route => cardView === 'detailed' ? <DetailedRouteCard key={route.id} route={route} /> : <RouteCard key={route.id} route={route} />) : <div className="empty-state">No buses match your search. Try another name or number.</div>}</div>
       </section>
       {language === 'ur' && <p className="language-note">بسوں کے نام اردو میں دکھائے جا رہے ہیں۔</p>}
     </main>
@@ -191,8 +237,29 @@ function StopPicker({ label, value, onChange }: { label: string; value: string; 
   const [query, setQuery] = useState('')
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
-    if (open) dialog.current?.showModal()
-    else dialog.current?.close()
+    const picker = dialog.current
+    if (!picker) return
+    if (!open) {
+      picker.close()
+      return
+    }
+
+    picker.showModal()
+    const updateViewport = () => {
+      const viewport = window.visualViewport
+      picker.style.setProperty('--picker-height', `${viewport?.height ?? window.innerHeight}px`)
+      picker.style.setProperty('--picker-top', `${viewport?.offsetTop ?? 0}px`)
+    }
+    updateViewport()
+    window.visualViewport?.addEventListener('resize', updateViewport)
+    window.visualViewport?.addEventListener('scroll', updateViewport)
+    window.addEventListener('resize', updateViewport)
+    return () => {
+      window.visualViewport?.removeEventListener('resize', updateViewport)
+      window.visualViewport?.removeEventListener('scroll', updateViewport)
+      window.removeEventListener('resize', updateViewport)
+      picker.close()
+    }
   }, [open])
   const results = useMemo(() => data.stops.filter(stop => !query || `${stop.name} ${stop.urdu}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())).slice(0, 60), [data.stops, query])
   return <>
@@ -200,7 +267,7 @@ function StopPicker({ label, value, onChange }: { label: string; value: string; 
     <dialog ref={dialog} className="stop-dialog" onClose={() => setOpen(false)} aria-label={`Choose ${label.toLowerCase()}`}>
       <div className="dialog-header"><h2>Choose {label.toLowerCase()}</h2><button type="button" onClick={() => setOpen(false)} aria-label="Close stop picker">×</button></div>
       <label className="search-field"><Icons name="search" /><span className="sr-only">Search stops</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search stop name" autoComplete="off" /></label>
-      <div className="stop-options">{results.length ? results.map(stop => <button type="button" key={stop.id} onClick={() => { onChange(stop.id); setOpen(false) }}><Icons name="pin" size={20} /><span>{nameOf(stop, language)}<small>{stop.id}</small></span></button>) : <p className="empty-state">No stop found. Try a different spelling.</p>}</div>
+      <div className="stop-options">{results.length ? results.map(stop => <button type="button" key={stop.id} onClick={() => { onChange(stop.id); setOpen(false) }}><Icons name="pin" size={20} /><span>{nameOf(stop, language)}</span></button>) : <p className="empty-state">No stop found. Try a different spelling.</p>}</div>
     </dialog>
   </>
 }
@@ -225,8 +292,8 @@ function PlanPage() {
   useEffect(() => { if (from && to) void find() }, []) // Restore shared journey URLs on first load.
   const fromStop = data.stopById.get(from)
   const toStop = data.stopById.get(to)
-  return <><PageHeader title="Bus Suggestion" /><main id="main-content" className="screen content-screen">
-    <div className="screen-intro"><h1>Get Bus Suggestions</h1><p>Choose where your trip starts and ends.</p></div>
+  return <><PageHeader title="Plan a Trip" /><main id="main-content" className="screen content-screen">
+    <div className="screen-intro"><h1>Plan a Trip</h1><p>Choose where your trip starts and ends.</p></div>
     <section className="planner-card"><StopPicker label="From stop" value={from} onChange={id => { setFrom(id); setRoutes(null) }} /><button type="button" className="swap-action" onClick={() => { setFrom(to); setTo(from); setRoutes(null) }} aria-label="Swap stops"><Icons name="swap" />Swap stops</button><StopPicker label="To stop" value={to} onChange={id => { setTo(id); setRoutes(null) }} /><button className="wide-button" type="button" onClick={() => void find()}>Find Buses</button>{error && <p className="form-error" role="alert">{error}</p>}</section>
     {routes && <section className="list-section"><div className="list-heading"><h2>{fromStop && toStop ? `${nameOf(fromStop, language)} → ${nameOf(toStop, language)}` : 'Suggested Buses'}</h2><span>{routes.length} direct {routes.length === 1 ? 'bus' : 'buses'}</span></div><div className="route-list">{routes.length ? routes.map(route => <RouteCard key={route.id} route={route} trip={fromStop && toStop ? { from: fromStop, to: toStop } : undefined} />) : <div className="empty-state">No direct bus was found. Try a nearby stop or browse all buses.</div>}</div></section>}
     <AppLink href="/buses" className="text-link">Browse all buses</AppLink>
@@ -236,9 +303,24 @@ function PlanPage() {
 function StopsPage() {
   const { data, language } = useApp()
   const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState('')
-  const matching = useMemo(() => data.stops.filter(stop => !query || `${stop.name} ${stop.urdu} ${stop.id}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())).slice(0, 80), [data.stops, query])
-  return <><PageHeader title="Buses On Stop" /><main id="main-content" className="screen content-screen"><div className="screen-intro"><h1>Find Buses at a Stop</h1><p>Select a stop to see every bus that serves it.</p></div><section className="planner-card"><StopPicker label="Stop" value={selected} onChange={id => { setSelected(id); go(`/stop/${id}`) }} /></section><div className="list-heading"><h2>All Stops</h2><span>{data.stops.length} stops</span></div><label className="search-field"><Icons name="search" /><span className="sr-only">Search stops</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search stops" autoComplete="off" /></label><div className="stop-list-grid">{matching.map(stop => <StopCard key={stop.id} stop={stop} />)}</div>{matching.length === 80 && <p className="list-note">Showing the first 80 stops. Search to narrow the list.</p>}{!matching.length && <p className="empty-state">No stop matches that name.</p>}{language === 'ur' && <p className="language-note">اسٹاپ کے نام اردو میں دکھائے جا رہے ہیں۔</p>}</main></>
+  const [visibleCount, setVisibleCount] = useState(60)
+  const search = useDeferredValue(query.trim().toLocaleLowerCase())
+  const matching = useMemo(() => data.stops.filter(stop => !search || `${stop.name} ${stop.urdu}`.toLocaleLowerCase().includes(search)), [data.stops, search])
+  const visible = matching.slice(0, visibleCount)
+  return <>
+    <PageHeader title="Bus Stops" />
+    <main id="main-content" className="screen content-screen stops-screen">
+      <div className="screen-intro"><h1>Find a Bus Stop</h1><p>Search a stop by name to see which buses go there.</p></div>
+      <div className="stops-search-sticky">
+        <label className="search-field"><Icons name="search" /><span className="sr-only">Search all bus stops</span><input type="search" value={query} onChange={event => { setQuery(event.target.value); setVisibleCount(60) }} placeholder="Try Saddar or Tower" autoComplete="off" /></label>
+      </div>
+      <div className="list-heading stops-results-heading"><h2>{query ? 'Matching Stops' : 'Browse All Stops'}</h2><span aria-live="polite">{matching.length} {matching.length === 1 ? 'stop' : 'stops'}</span></div>
+      <div className="stop-list-grid">{visible.map(stop => <StopCard key={stop.id} stop={stop} />)}</div>
+      {!matching.length && <div className="empty-state"><strong>No stop found</strong><p>Try a shorter name or a different spelling.</p></div>}
+      {matching.length > visible.length && <button className="outline-button stops-load-more" type="button" onClick={() => setVisibleCount(count => count + 60)}>Show More Stops</button>}
+      {language === 'ur' && <p className="language-note">اسٹاپ کے نام اردو میں دکھائے جا رہے ہیں۔</p>}
+    </main>
+  </>
 }
 
 function StopDetail({ id }: { id: string }) {
@@ -246,7 +328,7 @@ function StopDetail({ id }: { id: string }) {
   const stop = data.stopById.get(id)
   if (!stop) return <NotFound />
   const routes = ids(data.routesOnStop[id]).map(routeId => data.routeById.get(routeId)).filter((route): route is Route => Boolean(route))
-  return <><PageHeader title="Buses On Stop" action={<FavoriteButton kind="stops" id={id} />} /><main id="main-content" className="screen content-screen"><div className="detail-hero"><span className="detail-icon"><Icons name="pin" size={32} /></span><div><small>Bus stop</small><h1>{nameOf(stop, language)}</h1>{language !== 'en' && <p>{stop.name}</p>}</div></div><div className="list-heading"><h2>Routes at this Stop</h2><span>{routes.length} buses</span></div><div className="route-list">{routes.length ? routes.map(route => <RouteCard key={route.id} route={route} />) : <p className="empty-state">No routes are listed for this stop.</p>}</div><AppLink href="/stops" className="text-link">Choose another stop</AppLink></main></>
+  return <><PageHeader title="Bus Stop" action={<FavoriteButton kind="stops" id={id} />} /><main id="main-content" className="screen content-screen"><div className="detail-hero"><span className="detail-icon"><Icons name="pin" size={32} /></span><div><small>Bus stop</small><h1>{nameOf(stop, language)}</h1>{language !== 'en' && <p>{stop.name}</p>}</div></div><div className="list-heading"><h2>Routes at this Stop</h2><span>{routes.length} buses</span></div><div className="route-list">{routes.length ? routes.map(route => <RouteCard key={route.id} route={route} />) : <p className="empty-state">No routes are listed for this stop.</p>}</div><AppLink href="/stops" className="text-link">Choose another stop</AppLink></main></>
 }
 
 function RouteDetail({ id }: { id: string }) {
@@ -259,7 +341,7 @@ function RouteDetail({ id }: { id: string }) {
   return <>
     <PageHeader title="Bus Details" action={<a className="topbar-home" href="#route-map">Map</a>} />
     <main id="main-content" className="screen content-screen">
-      <section className="route-detail-card"><div className="detail-card-top"><span>Route Details</span><FavoriteButton kind="routes" id={id} /></div><div className="route-identity"><img src={routeImage(route)} alt={`${typeName(route.type)} illustration`} /><div><h1>{nameOf(route, language)}</h1>{route.urdu && language === 'en' && <p lang="ur" dir="rtl">{route.urdu}</p>}<span className="type-pill"><Icons name="star" size={16} />{typeName(route.type)}</span></div></div></section>
+      <section className="route-detail-card"><div className="detail-card-top"><span>Route Details</span><FavoriteButton kind="routes" id={id} /></div><div className="route-identity"><img src={routeImage(route)} alt={`${typeName(route.type)} illustration`} /><div><h1>{nameOf(route, language)}</h1>{route.urdu && language === 'en' && <p lang="ur" dir="rtl">{route.urdu}</p>}<span className="type-pill"><Icons name="bus" size={16} />{typeName(route.type)}</span></div></div></section>
       <section className="journey-panel"><h2>Route Journey</h2><div className="journey-point"><span><Icons name="pin" /></span><div><small>Starting Point</small><strong>{nameOf(first, language)}</strong></div></div><div className="journey-line" /><div className="journey-point end"><span><Icons name="pin" /></span><div><small>Destination</small><strong>{nameOf(last, language)}</strong></div></div><AppLink href={`/route/${id}/stops`} className="wide-button secondary">View All {count} Stops</AppLink></section>
       <section className="detail-actions" aria-label="Route actions"><AppLink href={`/route/${id}/reviews`}><Icons name="star" />Reviews</AppLink><AppLink href={`/feedback?type=route&route=${encodeURIComponent(id)}`}><Icons name="feedback" />Report Issue</AppLink><button type="button" onClick={() => sharePage(route.name)}><Icons name="share" />Share</button></section>
       <GoogleRouteMap key={route.id} route={route} data={data} />
@@ -272,7 +354,7 @@ function RouteStops({ id }: { id: string }) {
   const route = data.routeById.get(id)
   if (!route) return <NotFound />
   const stops = ids(data.stopsOnRoute[id]).map(stopId => data.stopById.get(stopId)).filter((stop): stop is Stop => Boolean(stop))
-  return <><PageHeader title="Show Stops" action={<button className="topbar-home" type="button" onClick={() => sharePage(`${route.name} stops`)}>Share</button>} /><main id="main-content" className="screen content-screen"><div className="route-stops-heading"><img src={routeImage(route)} alt="" /><div><small>Route</small><h1>{nameOf(route, language)}</h1></div></div><div className="list-heading"><h2>All Stops</h2><span>{stops.length} stops</span></div><div className="stop-list-grid">{stops.map((stop, index) => <div key={stop.id} className="numbered-stop"><span>{index + 1}</span><StopCard stop={stop} routeId={id} /></div>)}</div></main></>
+  return <><PageHeader title="Route Stops" action={<button className="topbar-home" type="button" onClick={() => sharePage(`${route.name} stops`)}>Share</button>} /><main id="main-content" className="screen content-screen"><div className="route-stops-heading"><img src={routeImage(route)} alt="" /><div><small>Route</small><h1>{nameOf(route, language)}</h1></div></div><div className="list-heading"><h2>All Stops</h2><span>{stops.length} stops</span></div><div className="stop-list-grid">{stops.map((stop, index) => <div key={stop.id} className="numbered-stop"><span>{index + 1}</span><StopCard stop={stop} routeId={id} /></div>)}</div></main></>
 }
 
 function FavoritesPage() {
@@ -288,7 +370,7 @@ function SettingsPage() {
   const [cleared, setCleared] = useState(false)
   const languageOptions: [Language, string][] = [['en', 'English'], ['ur', 'اردو (Urdu)'], ['mixed', 'Stops & Buses in اردو']]
   const themeOptions: [Theme, string][] = [['light', 'Light'], ['dark', 'Dark'], ['system', 'System Default'], ['coastal-light', 'Custom Light'], ['coastal-dark', 'Custom Dark']]
-  return <><PageHeader title="Setting" /><main id="main-content" className="screen content-screen"><div className="screen-intro"><h1>Settings</h1><p>Choose how the app looks and displays route names.</p></div><section className="settings-card"><h2>Language</h2>{languageOptions.map(([value, label]) => <button type="button" className={`choice ${language === value ? 'selected' : ''}`} key={value} onClick={() => setLanguage(value)}><Icons name="globe" /><span>{label}</span>{language === value && <span className="check">✓</span>}</button>)}</section><section className="settings-card"><h2>Theme</h2>{themeOptions.map(([value, label]) => <button type="button" className={`choice ${theme === value ? 'selected' : ''}`} key={value} onClick={() => setTheme(value)}><Icons name="settings" /><span>{label}</span>{theme === value && <span className="check">✓</span>}</button>)}</section><section className="settings-card"><h2>Data & Privacy</h2><p>Favorites and display preferences are stored in this browser. Route data is bundled with the website.</p><button className="outline-button" type="button" onClick={() => { if (confirm('Remove all saved routes and stops?')) { clearFavorites(); setCleared(true) } }}>Clear Saved Items</button>{cleared && <p className="success-message" role="status">Saved items removed.</p>}<div className="settings-links"><AppLink href="/data">View Data</AppLink><AppLink href="/about">About</AppLink><AppLink href="/privacy">Privacy</AppLink><AppLink href="/contact">Contact</AppLink></div></section></main></>
+  return <><PageHeader title="Settings" /><main id="main-content" className="screen content-screen"><div className="screen-intro"><h1>Settings</h1><p>Choose how the app looks and displays route names.</p></div><section className="settings-card"><h2>Language</h2>{languageOptions.map(([value, label]) => <button type="button" className={`choice ${language === value ? 'selected' : ''}`} key={value} onClick={() => setLanguage(value)}><Icons name="globe" /><span>{label}</span>{language === value && <span className="check" aria-label="Selected"><Icons name="check" size={19} /></span>}</button>)}</section><section className="settings-card"><h2>Theme</h2>{themeOptions.map(([value, label]) => <button type="button" className={`choice ${theme === value ? 'selected' : ''}`} key={value} onClick={() => setTheme(value)}><Icons name="settings" /><span>{label}</span>{theme === value && <span className="check" aria-label="Selected"><Icons name="check" size={19} /></span>}</button>)}</section><section className="settings-card"><h2>Data & Privacy</h2><p>Favorites and display preferences are stored in this browser. Route data is bundled with the website.</p><button className="outline-button" type="button" onClick={() => { if (confirm('Remove all saved routes and stops?')) { clearFavorites(); setCleared(true) } }}>Clear Saved Items</button>{cleared && <p className="success-message" role="status">Saved items removed.</p>}<div className="settings-links"><AppLink href="/data">View Data</AppLink><AppLink href="/about">About</AppLink><AppLink href="/privacy">Privacy</AppLink><AppLink href="/contact">Contact</AppLink></div></section></main></>
 }
 
 function MapPage({ id }: { id: string }) {
@@ -388,6 +470,34 @@ export default function App() {
     document.documentElement.lang = language === 'ur' ? 'ur' : 'en'
     localStorage.setItem('brk-web-theme', JSON.stringify(theme))
   }, [theme, language])
+
+  useEffect(() => {
+    if (!data) return
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
+    const observer = !reduceMotion && 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return
+        entry.target.classList.add('is-visible')
+        observer?.unobserve(entry.target)
+      })
+    }, { rootMargin: '0px 0px 55px 0px', threshold: 0.08 }) : null
+    let index = 0
+    const watch = (item: HTMLElement) => {
+      if (item.classList.contains('is-visible')) return
+      item.style.setProperty('--reveal-delay', `${Math.min(index++ % 5, 4) * 45}ms`)
+      if (observer) observer.observe(item)
+      else item.classList.add('is-visible')
+    }
+    document.querySelectorAll<HTMLElement>('.motion-reveal').forEach(watch)
+    const mutationObserver = new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(node => {
+      if (!(node instanceof HTMLElement)) return
+      if (node.matches('.motion-reveal')) watch(node)
+      node.querySelectorAll<HTMLElement>('.motion-reveal').forEach(watch)
+    })))
+    const root = document.getElementById('root')
+    if (root) mutationObserver.observe(root, { childList: true, subtree: true })
+    return () => { observer?.disconnect(); mutationObserver.disconnect() }
+  }, [data, path])
 
   function setLanguage(value: Language) { updateLanguage(value); localStorage.setItem('brk-web-language', JSON.stringify(value)) }
   function setTheme(value: Theme) { updateTheme(value) }
