@@ -50,3 +50,11 @@ Copy `.env.example` to `.env.local`, supply the required public client settings,
 ## Map limitations and verification
 
 All route stops remain listed even if Google Maps cannot load. With a configured key, a failed map offers **Retry map**, and each attempt cleans up prior layers/listeners. `tests/fixtures/map-retry.html` is a local Vite-only SDK fixture for failure/retry/unmount checks; it is not part of the production build. Google directions links are limited to three intermediate stops on mobile browsers and cannot represent every stop on long routes. This limitation is not fixed by having an API key.
+
+## Interaction design
+
+`src/interactions.css` adds custom controls and action feedback to the established
+layout. `src/pressFeedback.ts` handles bounded, delegated press effects without
+React animation-frame updates. It cleans up when animations finish, the app
+unmounts, or the system requests reduced motion. No animation library is needed.
+The existing bus SVGs and route/search behavior are preserved.

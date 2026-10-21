@@ -7,6 +7,7 @@ import { ContributionForm, ReviewComposer, ReviewsPanel } from './BackendForms'
 import { pathId, savedFavorites } from './inputSafety'
 import { sharePage } from './sharing'
 import { watchSystemTheme } from './systemTheme'
+import { installPressFeedback } from './pressFeedback'
 
 type Language = 'en' | 'ur' | 'mixed'
 type Theme = 'light' | 'dark' | 'system' | 'coastal-light' | 'coastal-dark'
@@ -446,6 +447,10 @@ function ScreenRouter() {
 }
 
 export default function App() {
+  useEffect(() => {
+    const root = document.getElementById('root')
+    if (root) return installPressFeedback(root)
+  }, [])
   const [data, setData] = useState<TransitData | null>(null)
   const [loadError, setLoadError] = useState('')
   const [path, setPath] = useState(location.pathname + location.search)

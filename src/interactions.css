@@ -1,0 +1,193 @@
+/* Konsi Bus: tactile controls, route-line details, and action-driven motion.
+   Keep motion on transform/opacity and preserve every control's hit area. */
+:root {
+  --motion-quick: 160ms;
+  --motion-settle: 320ms;
+  --motion-ease: cubic-bezier(.2,.75,.2,1);
+}
+
+:where(.wide-button,.outline-button,.topbar-home,.detail-actions a,.detail-actions button,
+  .stop-select,.bus-view-switch button,.stops-load-more) {
+  position: relative;
+  isolation: isolate;
+  min-height: 46px;
+  gap: 9px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform var(--motion-quick) var(--motion-ease),
+    opacity var(--motion-quick) ease;
+}
+
+/* The small inset line is a bus-ticket detail, shared by primary actions. */
+.wide-button {
+  min-height: 52px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  box-shadow: none;
+  overflow: hidden;
+}
+.wide-button::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border: 1px solid currentColor;
+  opacity: .15;
+  border-radius: 9px;
+  pointer-events: none;
+}
+.wide-button:hover { filter: none; }
+.wide-button.secondary { border-color: var(--line); box-shadow: none; }
+.hero-actions .wide-button::after {
+  content: '→';
+  margin-inline-start: 8px;
+  font-size: 1.2em;
+  transition: transform var(--motion-settle) var(--motion-ease);
+}
+.outline-button,.topbar-home,.stops-load-more {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--primary);
+  background: var(--surface);
+}
+.outline-button:focus-visible,.wide-button:focus-visible,
+.detail-actions :is(a,button):focus-visible,.stop-select:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 4px;
+}
+:where(button,a)[aria-disabled='true'],button:disabled {
+  cursor: not-allowed;
+}
+
+/* Each route action remains a single, clearly named touch target. */
+.detail-actions { gap: 8px; }
+.detail-actions :is(a,button) {
+  min-height: 76px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  font-weight: 750;
+}
+.detail-actions svg,.bottom-icon svg,.favorite-button svg,
+.search-field>svg,.stop-select>svg,.swap-action svg {
+  transition: transform var(--motion-settle) var(--motion-ease);
+}
+.detail-actions :is(a,button):focus-visible svg { transform: translateY(-3px); }
+
+/* A contained ripple is created only for an actual press, never every frame. */
+.press-ripple {
+  position: absolute;
+  z-index: -1;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  margin: -12px 0 0 -12px;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+}
+.wide-button,.outline-button,.detail-actions :is(a,button),.bus-view-switch button {
+  overflow: hidden;
+}
+
+.bus-view-switch { padding: 4px; border-radius: 13px; }
+.bus-view-switch button { min-height: 44px; border-radius: 9px; }
+.bus-view-switch button[aria-pressed='true'] {
+  color: var(--primary-ink);
+  background: var(--primary);
+  animation: control-select 240ms var(--motion-ease);
+}
+.favorite-button { min-width: 44px; min-height: 44px; }
+.favorite-button.is-saved svg { animation: saved-confirm 420ms var(--motion-ease); }
+.favorite-button:active svg { transform: scale(.82); }
+
+.bottom-nav { background: var(--surface); }
+.bottom-nav a { position: relative; background: transparent; }
+.bottom-nav a::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  width: 18px;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 2px;
+  transform: scaleX(0);
+  transition: transform var(--motion-settle) var(--motion-ease);
+}
+.bottom-nav a[aria-current='page']::after { transform: scaleX(1); }
+.bottom-nav a[aria-current='page'] .bottom-icon svg {
+  animation: navigation-select 340ms var(--motion-ease);
+}
+.bottom-nav a:active .bottom-icon { transform: scale(.9); }
+
+.search-field:focus-within>svg { transform: rotate(-9deg) scale(1.12); }
+.search-field:focus-within { border-color: var(--primary); }
+.stop-select { border-radius: 15px; }
+.stop-select:focus-visible>svg { transform: translateX(-3px); }
+.stop-dialog[open] { animation: picker-open 240ms var(--motion-ease); }
+.stop-dialog[open]::backdrop { animation: backdrop-open 180ms ease; }
+.stop-options button { min-height: 48px; }
+.stop-options button:active { background: var(--soft); }
+.stop-options button:active .stop-marker { transform: scale(.9); }
+.swap-action:active svg { transform: rotate(180deg); }
+
+.detailed-route-art { background: var(--soft); }
+.detailed-route-journey { border-top-style: dashed; }
+.detailed-route-count { font-variant-numeric: tabular-nums; }
+.journey-line { transform-origin: top; animation: journey-connect 450ms var(--motion-ease); }
+.map-fallback-button .map-fallback-line { transform-origin: left; }
+.map-fallback-button:focus-visible .map-fallback-line {
+  animation: route-connect 500ms var(--motion-ease);
+}
+.success-message,.submission-success { animation: confirmation-in 260ms var(--motion-ease); }
+.backend-fields[disabled] .wide-button { transform: none; }
+.detailed-route-link:focus-visible .detailed-route-art::before { animation-iteration-count: 2; }
+
+@media (hover:hover) and (pointer:fine) {
+  :is(.wide-button,.outline-button,.topbar-home,.stops-load-more):hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+  .hero-actions .wide-button:hover::after { transform: translateX(4px); }
+  .detail-actions :is(a,button):hover svg { transform: translateY(-4px) rotate(-5deg); }
+  .bottom-nav a:hover .bottom-icon svg { transform: translateY(-2px); }
+  .detailed-route-card:hover .detailed-route-art::before { animation-iteration-count: 2; }
+  .map-fallback-button:hover .map-fallback-line { animation: route-connect 500ms var(--motion-ease); }
+}
+@media (max-width:700px) {
+  .hero-actions .wide-button { min-width: 0; padding: 12px 10px; font-size: .86rem; gap: 6px; }
+  .hero-actions .wide-button::after { margin-inline-start: 2px; }
+  .bottom-nav a { padding-bottom: 7px; }
+}
+@media (min-width:1100px) {
+  .bottom-nav a::after { bottom: 10px; }
+}
+@media (min-width:701px) {
+  .dashboard-hero,.dashboard-content {
+    width: calc(100% - 40px);
+    max-width: 1110px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+:is(.wide-button,.outline-button,.topbar-home,.stops-load-more):active:not(:disabled) {
+  transform: translateY(1px) scale(.98);
+}
+
+@keyframes control-select { from { opacity: .55; transform: scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes saved-confirm { 0% { transform: scale(.75) rotate(-15deg); } 55% { transform: scale(1.2) rotate(8deg); } 100% { transform: none; } }
+@keyframes navigation-select { 0% { transform: translateY(3px) scale(.9); } 60% { transform: translateY(-3px) scale(1.08); } 100% { transform: none; } }
+@keyframes picker-open { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes backdrop-open { from { opacity: 0; } to { opacity: 1; } }
+@keyframes journey-connect { from { opacity: .4; transform: scaleY(.25); } to { opacity: 1; transform: scaleY(1); } }
+@keyframes route-connect { from { transform: scaleX(.25); opacity: .4; } to { transform: scaleX(1); opacity: 1; } }
+@keyframes confirmation-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after { animation: none !important; transition: none !important; }
+  .press-ripple { display: none; }
+  .motion-reveal { opacity: 1; transform: none; }
+  .stage-route path { stroke-dashoffset: 0; }
+  :is(.wide-button,.outline-button,.topbar-home,.stops-load-more):is(:active,:hover),
+  .detail-actions :is(a,button):hover svg,.favorite-button:active svg,
+  .bottom-nav a:hover .bottom-icon svg,.search-field:focus-within>svg { transform: none; }
+}
