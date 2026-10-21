@@ -26,26 +26,36 @@ function directionsUrl(stops: Stop[]) {
   return url.toString()
 }
 
-export default function GoogleRouteMap({ route, data }: { route: Route; data: TransitData }) {
+export default function GoogleRouteMap({ route, data, apiKey = GOOGLE_MAPS_KEY }: { route: Route; data: TransitData; apiKey?: string }) {
   const stops = useMemo(() => ids(data.stopsOnRoute[route.id])
     .map(id => data.stopById.get(id))
     .filter((stop): stop is Stop => Boolean(stop)), [data.stopById, data.stopsOnRoute, route.id])
   const mapElement = useRef<HTMLDivElement>(null)
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(GOOGLE_MAPS_KEY && stops.length > 1 ? 'loading' : 'error')
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(apiKey && stops.length > 1 ? 'loading' : 'error')
+  const [attempt, setAttempt] = useState(0)
   const [stopQuery, setStopQuery] = useState('')
   const url = useMemo(() => directionsUrl(stops), [stops])
   const visibleStops = stops.map((stop, index) => ({ stop, index }))
     .filter(({ stop }) => stop.name.toLocaleLowerCase().includes(stopQuery.trim().toLocaleLowerCase()))
 
   useEffect(() => {
-    if (!GOOGLE_MAPS_KEY || !mapElement.current || stops.length < 2) return
+    if (!apiKey || !mapElement.current || stops.length < 2) { setStatus('error'); return }
+    setStatus('loading')
     let active = true
     const lines: google.maps.Polyline[] = []
     const markers: google.maps.Marker[] = []
+    const listeners: google.maps.MapsEventListener[] = []
+    const container = mapElement.current
+    const cleanUp = () => {
+      listeners.splice(0).forEach(listener => listener.remove())
+      lines.splice(0).forEach(line => line.setMap(null))
+      markers.splice(0).forEach(marker => marker.setMap(null))
+      container.replaceChildren()
+    }
 
     async function renderMap() {
       if (!loaderConfigured) {
-        setOptions({ key: GOOGLE_MAPS_KEY!, v: 'weekly', region: 'PK' })
+        setOptions({ key: apiKey!, v: 'weekly', region: 'PK' })
         loaderConfigured = true
       }
       const [maps, core, markerLibrary, routesLibrary] = await Promise.all([
@@ -59,9 +69,10 @@ export default function GoogleRouteMap({ route, data }: { route: Route; data: Tr
         gestureHandling: 'none',
         keyboardShortcuts: false,
         clickableIcons: false,
+        internalUsageAttributionIds: ['gmp_git_agentskills_v1'],
       })
       const openMaps = () => window.open(url, '_blank', 'noopener,noreferrer')
-      map.addListener('click', openMaps)
+      listeners.push(map.addListener('click', openMaps))
       const bounds = new core.LatLngBounds()
 
       // Keep all routes on one map while staying within Google's request limit.
@@ -99,7 +110,7 @@ export default function GoogleRouteMap({ route, data }: { route: Route; data: Tr
             label: String(start + index + 1),
             title: `${start + index + 1}. ${stop.name}`,
           })
-          pin.addListener('click', openMaps)
+          listeners.push(pin.addListener('click', openMaps))
           markers.push(pin)
         })
       }
@@ -108,21 +119,19 @@ export default function GoogleRouteMap({ route, data }: { route: Route; data: Tr
     }
 
     void renderMap().catch(() => {
-      lines.forEach(line => line.setMap(null))
-      markers.forEach(marker => marker.setMap(null))
-      if (active) setStatus('error')
+      if (active) { cleanUp(); setStatus('error') }
     })
     return () => {
       active = false
-      lines.forEach(line => line.setMap(null))
-      markers.forEach(marker => marker.setMap(null))
+      cleanUp()
     }
-  }, [stops, url])
+  }, [stops, url, apiKey, attempt])
 
   return <section className="embedded-map-card" id="route-map" aria-label="Route map">
     <div className="map-card-heading"><div><h2>Route map</h2><p>{stops[0]?.name} to {stops[stops.length - 1]?.name}</p></div><span>{stops.length} stops</span></div>
-    {GOOGLE_MAPS_KEY && status !== 'error' && <div className={`full-route-map ${status === 'ready' ? 'is-ready' : ''}`} ref={mapElement} aria-label={`${route.name} route map`} />}
+    {apiKey && <div key={attempt} className={`full-route-map ${status === 'ready' ? 'is-ready' : ''}`} style={status === 'error' ? { display: 'none' } : undefined} ref={mapElement} aria-label={`${route.name} route map`} />}
     {status === 'loading' && <div className="full-map-message" role="status">Loading route map...</div>}
+    {status === 'error' && apiKey && stops.length > 1 && <div className="full-map-message"><p>Map could not load. Try again or open Google Maps.</p><button type="button" className="outline-button" onClick={() => setAttempt(value => value + 1)}>Retry map</button></div>}
     {status === 'error' && <a className="map-fallback-button" href={url || undefined} target="_blank" rel="noopener noreferrer"><span className="map-fallback-route"><strong>{stops[0]?.name}</strong><span className="map-fallback-line" aria-hidden="true" /><strong>{stops[stops.length - 1]?.name}</strong></span><span className="map-fallback-action">View route in Google Maps <span aria-hidden="true">↗</span></span></a>}
     {status === 'ready' && <a className="wide-button map-open-button" href={url} target="_blank" rel="noopener noreferrer">Open in Google Maps</a>}
     <div className="map-stops-heading"><div><h3>All stops</h3><p>In route order</p></div>{stops.length > 8 && <label className="map-stop-search"><span className="sr-only">Find a stop on this route</span><input type="search" placeholder="Find a stop" value={stopQuery} onChange={event => setStopQuery(event.target.value)} /></label>}</div>

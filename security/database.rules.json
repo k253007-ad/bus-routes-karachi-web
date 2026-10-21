@@ -1,0 +1,215 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "admins": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": false
+    },
+    "stops": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "routes": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "route_stops": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "stop_routes": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "params": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "db_version": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "route_list": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "stop_list": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "routes_btw_stops": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "stops_on_a_route": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "routes_on_a_stop": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "app_version_code": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "pending_bus_submissions": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "rejected_submissions": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "admin_actions": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "admin": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "feedback": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".indexOn": [
+        "deviceId",
+        "timestamp",
+        "status",
+        "type"
+      ],
+      "$submissionId": {
+        ".write": "(auth != null && root.child('admins').child(auth.uid).val() === true) || (auth != null && !data.exists() && newData.exists() && $submissionId.matches(/^[a-zA-Z0-9_-]{10,100}$/) && newData.parent().parent().child('submission_limits').child(auth.uid).child('feedback').child('submissionId').val() === $submissionId && newData.parent().parent().child('submission_limits').child(auth.uid).child('feedback').child('timestamp').val() === now && (!root.child('submission_limits').child(auth.uid).child('feedback').exists() || root.child('submission_limits').child(auth.uid).child('feedback').child('timestamp').val() + 60000 <= now))",
+        ".validate": "newData.hasChildren([\"input\",\"type\",\"timestamp\",\"deviceId\"])",
+        "input": {
+          ".validate": "newData.isString() && newData.val().length >= 10 && newData.val().length <= 1000"
+        },
+        "type": {
+          ".validate": "newData.isString() && (newData.val() === 'suggestion' || newData.val() === 'bug' || newData.val() === 'other')"
+        },
+        "deviceId": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 128 && (auth != null && root.child('admins').child(auth.uid).val() === true || newData.val() === auth.uid) && (!data.exists() || newData.val() === data.val())"
+        },
+        "status": {
+          ".validate": "(auth != null && root.child('admins').child(auth.uid).val() === true) && newData.isString() && (newData.val() === 'unresolved' || newData.val() === 'resolved' || newData.val() === 'spam')"
+        },
+        "adminNotes": {
+          ".validate": "(auth != null && root.child('admins').child(auth.uid).val() === true) && newData.isString() && newData.val().length <= 2000"
+        },
+        "timestamp": {
+          ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= now && (auth != null && root.child('admins').child(auth.uid).val() === true || newData.val() === now)"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "bus_feedback": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".indexOn": [
+        "deviceId",
+        "timestamp",
+        "routeId",
+        "feed"
+      ],
+      "$submissionId": {
+        ".write": "(auth != null && root.child('admins').child(auth.uid).val() === true) || (auth != null && !data.exists() && newData.exists() && $submissionId.matches(/^[a-zA-Z0-9_-]{10,100}$/) && newData.parent().parent().child('submission_limits').child(auth.uid).child('bus_feedback').child('submissionId').val() === $submissionId && newData.parent().parent().child('submission_limits').child(auth.uid).child('bus_feedback').child('timestamp').val() === now && (!root.child('submission_limits').child(auth.uid).child('bus_feedback').exists() || root.child('submission_limits').child(auth.uid).child('bus_feedback').child('timestamp').val() + 60000 <= now))",
+        ".validate": "newData.hasChildren([\"comment\",\"feed\",\"feedType\",\"routeId\",\"timestamp\",\"deviceId\"])",
+        "comment": {
+          ".validate": "newData.isString() && newData.val().length >= 10 && newData.val().length <= 500"
+        },
+        "feed": {
+          ".validate": "newData.isString() && (newData.val() === 'wrong_stops' || newData.val() === 'outdated' || newData.val() === 'missing_info' || newData.val() === 'other')"
+        },
+        "feedType": {
+          ".validate": "newData.isString() && newData.val() === newData.parent().child('feed').val()"
+        },
+        "routeId": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 50"
+        },
+        "deviceId": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 128 && (auth != null && root.child('admins').child(auth.uid).val() === true || newData.val() === auth.uid) && (!data.exists() || newData.val() === data.val())"
+        },
+        "status": {
+          ".validate": "(auth != null && root.child('admins').child(auth.uid).val() === true) && newData.isString() && (newData.val() === 'unresolved' || newData.val() === 'resolved' || newData.val() === 'spam')"
+        },
+        "adminNotes": {
+          ".validate": "(auth != null && root.child('admins').child(auth.uid).val() === true) && newData.isString() && newData.val().length <= 2000"
+        },
+        "timestamp": {
+          ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= now && (auth != null && root.child('admins').child(auth.uid).val() === true || newData.val() === now)"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "stops_pending": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".indexOn": [
+        "timestamp",
+        "status",
+        "userId",
+        "busType"
+      ],
+      "$submissionId": {
+        ".write": "(auth != null && root.child('admins').child(auth.uid).val() === true) || (auth != null && !data.exists() && newData.exists() && $submissionId.matches(/^[a-zA-Z0-9_-]{10,100}$/) && newData.parent().parent().child('submission_limits').child(auth.uid).child('stops_pending').child('submissionId').val() === $submissionId && newData.parent().parent().child('submission_limits').child(auth.uid).child('stops_pending').child('timestamp').val() === now && (!root.child('submission_limits').child(auth.uid).child('stops_pending').exists() || root.child('submission_limits').child(auth.uid).child('stops_pending').child('timestamp').val() + 300000 <= now))",
+        ".validate": "newData.hasChildren([\"id\",\"busName\",\"busType\",\"startStop\",\"endStop\",\"timestamp\",\"userId\",\"status\"])",
+        "id": {
+          ".validate": "newData.isString() && newData.val() === $submissionId"
+        },
+        "busName": {
+          ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 50"
+        },
+        "busType": {
+          ".validate": "newData.isString() && (newData.val() === 'dd' || newData.val() === 'metro' || newData.val() === 'red' || newData.val() === 'pink' || newData.val() === 'ev' || newData.val() === 'mini' || newData.val() === 'midi' || newData.val() === 'coach' || newData.val() === 'bus' || newData.val() === 'rick')"
+        },
+        "startStop": {
+          ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 100"
+        },
+        "endStop": {
+          ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 100"
+        },
+        "userId": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 128 && (auth != null && root.child('admins').child(auth.uid).val() === true || newData.val() === auth.uid) && (!data.exists() || newData.val() === data.val())"
+        },
+        "status": {
+          ".validate": "newData.isString() && (newData.val() === 'pending' || ((auth != null && root.child('admins').child(auth.uid).val() === true) && (newData.val() === 'approved' || newData.val() === 'rejected')))"
+        },
+        "intermediateStops": {
+          ".validate": "newData.hasChildren()",
+          "$stopIndex": {
+            ".validate": "($stopIndex.matches(/^[0-9]$/) || $stopIndex.matches(/^[1-9][0-9]$/)) && newData.isString() && newData.val().length >= 3 && newData.val().length <= 100"
+          }
+        },
+        "adminNotes": {
+          ".validate": "(auth != null && root.child('admins').child(auth.uid).val() === true) && newData.isString() && newData.val().length <= 2000"
+        },
+        "timestamp": {
+          ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= now && (auth != null && root.child('admins').child(auth.uid).val() === true || newData.val() === now)"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "submission_limits": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || (auth != null && root.child('admins').child(auth.uid).val() === true))",
+        "$collection": {
+          ".write": "auth != null && auth.uid === $uid && ($collection === 'feedback' || $collection === 'bus_feedback' || $collection === 'stops_pending') && newData.exists() && newData.child('timestamp').val() === now && (!data.exists() || data.child('timestamp').val() + ($collection === 'stops_pending' ? 300000 : 60000) <= now) && !root.child($collection).child(newData.child('submissionId').val()).exists() && newData.parent().parent().parent().child($collection).child(newData.child('submissionId').val()).exists() && ($collection === 'stops_pending' ? newData.parent().parent().parent().child($collection).child(newData.child('submissionId').val()).child('userId').val() === auth.uid : newData.parent().parent().parent().child($collection).child(newData.child('submissionId').val()).child('deviceId').val() === auth.uid) && newData.parent().parent().parent().child($collection).child(newData.child('submissionId').val()).child('timestamp').val() === now",
+          ".validate": "newData.hasChildren(['timestamp', 'submissionId'])",
+          "timestamp": {
+            ".validate": "newData.isNumber() && newData.val() === now"
+          },
+          "submissionId": {
+            ".validate": "newData.isString() && newData.val().matches(/^[a-zA-Z0-9_-]{10,100}$/)"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    }
+  }
+}

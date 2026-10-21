@@ -1,8 +1,12 @@
 import { createContext, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import type { AnchorHTMLAttributes, FormEvent, ReactNode } from 'react'
-import { busTypes, ids, loadData, loadPairs, routeImage, typeName } from './data'
+import type { AnchorHTMLAttributes, ReactNode } from 'react'
+import { busTypes, ids, loadData, findDirectRoutes, refreshData, subscribeData, getDataSyncStatus, subscribeDataSync, routeImage, typeName } from './data'
 import type { Route, Stop, TransitData } from './data'
 import GoogleRouteMap from './GoogleRouteMap'
+import { ContributionForm, ReviewComposer, ReviewsPanel } from './BackendForms'
+import { pathId, savedFavorites } from './inputSafety'
+import { sharePage } from './sharing'
+import { watchSystemTheme } from './systemTheme'
 
 type Language = 'en' | 'ur' | 'mixed'
 type Theme = 'light' | 'dark' | 'system' | 'coastal-light' | 'coastal-dark'
@@ -88,7 +92,7 @@ function PageHeader({ title, action }: { title: string; action?: ReactNode }) {
   const atHome = location.pathname === '/'
   return <header className="topbar">
     <div className="topbar-inner">
-      {atHome ? <img className="topbar-logo" src="/images/app-icon.png" alt="" /> : <button className="icon-button topbar-back" type="button" onClick={() => history.length > 1 ? history.back() : go('/')} aria-label="Go back"><Icons name="back" /></button>}
+      {atHome ? <img className="topbar-logo" src="/images/ic_konsi_bus_karachi.svg" alt="" /> : <button className="icon-button topbar-back" type="button" onClick={() => history.length > 1 ? history.back() : go('/')} aria-label="Go back"><Icons name="back" /></button>}
       <span className="topbar-title">{title}</span>
       <span className="topbar-action">{action || <AppLink className="topbar-home" href="/">Home</AppLink>}</span>
     </div>
@@ -173,7 +177,7 @@ function Dashboard() {
     stops: data.stops.filter(stop => `${stop.name} ${stop.urdu}`.toLocaleLowerCase().includes(search)).slice(0, 3),
   } : { routes: [], stops: [] }, [data, search])
   return <>
-    <PageHeader title="Karachi Bus Routes" action={<AppLink className="topbar-home" href="/settings"><Icons name="settings" size={19} /> Settings</AppLink>} />
+    <PageHeader title="Konsi Bus Karachi" action={<AppLink className="topbar-home" href="/settings"><Icons name="settings" size={19} /> Settings</AppLink>} />
     <main id="main-content" className="screen dashboard">
       <section className="dashboard-hero">
         <div className="dashboard-welcome">
@@ -277,15 +281,15 @@ function PlanPage() {
   const params = new URLSearchParams(location.search)
   const [from, setFrom] = useState(params.get('from') || '')
   const [to, setTo] = useState(params.get('to') || '')
-  const [routes, setRoutes] = useState<Route[] | null>(null)
+  const [searched, setSearched] = useState(false)
+  const routes = searched ? findDirectRoutes(data, from, to) : null
   const [error, setError] = useState('')
   async function find() {
     if (!from || !to) { setError('Choose both stops to find a bus.'); return }
     if (from === to) { setError('Choose two different stops.'); return }
     setError('')
     try {
-      const pairs = await loadPairs()
-      setRoutes(ids(pairs[`${from}-${to}`]).map(id => data.routeById.get(id)).filter((route): route is Route => Boolean(route)))
+      setSearched(true)
       history.replaceState(null, '', `/plan?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
     } catch { setError('Route suggestions could not load. Try again.') }
   }
@@ -294,7 +298,7 @@ function PlanPage() {
   const toStop = data.stopById.get(to)
   return <><PageHeader title="Plan a Trip" /><main id="main-content" className="screen content-screen">
     <div className="screen-intro"><h1>Plan a Trip</h1><p>Choose where your trip starts and ends.</p></div>
-    <section className="planner-card"><StopPicker label="From stop" value={from} onChange={id => { setFrom(id); setRoutes(null) }} /><button type="button" className="swap-action" onClick={() => { setFrom(to); setTo(from); setRoutes(null) }} aria-label="Swap stops"><Icons name="swap" />Swap stops</button><StopPicker label="To stop" value={to} onChange={id => { setTo(id); setRoutes(null) }} /><button className="wide-button" type="button" onClick={() => void find()}>Find Buses</button>{error && <p className="form-error" role="alert">{error}</p>}</section>
+    <section className="planner-card"><StopPicker label="From stop" value={from} onChange={id => { setFrom(id); setSearched(false) }} /><button type="button" className="swap-action" onClick={() => { setFrom(to); setTo(from); setSearched(false) }} aria-label="Swap stops"><Icons name="swap" />Swap stops</button><StopPicker label="To stop" value={to} onChange={id => { setTo(id); setSearched(false) }} /><button className="wide-button" type="button" onClick={() => void find()}>Find Buses</button>{error && <p className="form-error" role="alert">{error}</p>}</section>
     {routes && <section className="list-section"><div className="list-heading"><h2>{fromStop && toStop ? `${nameOf(fromStop, language)} → ${nameOf(toStop, language)}` : 'Suggested Buses'}</h2><span>{routes.length} direct {routes.length === 1 ? 'bus' : 'buses'}</span></div><div className="route-list">{routes.length ? routes.map(route => <RouteCard key={route.id} route={route} trip={fromStop && toStop ? { from: fromStop, to: toStop } : undefined} />) : <div className="empty-state">No direct bus was found. Try a nearby stop or browse all buses.</div>}</div></section>}
     <AppLink href="/buses" className="text-link">Browse all buses</AppLink>
   </main></>
@@ -370,7 +374,7 @@ function SettingsPage() {
   const [cleared, setCleared] = useState(false)
   const languageOptions: [Language, string][] = [['en', 'English'], ['ur', 'اردو (Urdu)'], ['mixed', 'Stops & Buses in اردو']]
   const themeOptions: [Theme, string][] = [['light', 'Light'], ['dark', 'Dark'], ['system', 'System Default'], ['coastal-light', 'Custom Light'], ['coastal-dark', 'Custom Dark']]
-  return <><PageHeader title="Settings" /><main id="main-content" className="screen content-screen"><div className="screen-intro"><h1>Settings</h1><p>Choose how the app looks and displays route names.</p></div><section className="settings-card"><h2>Language</h2>{languageOptions.map(([value, label]) => <button type="button" className={`choice ${language === value ? 'selected' : ''}`} key={value} onClick={() => setLanguage(value)}><Icons name="globe" /><span>{label}</span>{language === value && <span className="check" aria-label="Selected"><Icons name="check" size={19} /></span>}</button>)}</section><section className="settings-card"><h2>Theme</h2>{themeOptions.map(([value, label]) => <button type="button" className={`choice ${theme === value ? 'selected' : ''}`} key={value} onClick={() => setTheme(value)}><Icons name="settings" /><span>{label}</span>{theme === value && <span className="check" aria-label="Selected"><Icons name="check" size={19} /></span>}</button>)}</section><section className="settings-card"><h2>Data & Privacy</h2><p>Favorites and display preferences are stored in this browser. Route data is bundled with the website.</p><button className="outline-button" type="button" onClick={() => { if (confirm('Remove all saved routes and stops?')) { clearFavorites(); setCleared(true) } }}>Clear Saved Items</button>{cleared && <p className="success-message" role="status">Saved items removed.</p>}<div className="settings-links"><AppLink href="/data">View Data</AppLink><AppLink href="/about">About</AppLink><AppLink href="/privacy">Privacy</AppLink><AppLink href="/contact">Contact</AppLink></div></section></main></>
+  return <><PageHeader title="Settings" /><main id="main-content" className="screen content-screen"><div className="screen-intro"><h1>Settings</h1><p>Choose how the app looks and displays route names.</p></div><section className="settings-card"><h2>Language</h2>{languageOptions.map(([value, label]) => <button type="button" className={`choice ${language === value ? 'selected' : ''}`} key={value} onClick={() => setLanguage(value)}><Icons name="globe" /><span>{label}</span>{language === value && <span className="check" aria-label="Selected"><Icons name="check" size={19} /></span>}</button>)}</section><section className="settings-card"><h2>Theme</h2>{themeOptions.map(([value, label]) => <button type="button" className={`choice ${theme === value ? 'selected' : ''}`} key={value} onClick={() => setTheme(value)}><Icons name="settings" /><span>{label}</span>{theme === value && <span className="check" aria-label="Selected"><Icons name="check" size={19} /></span>}</button>)}</section><section className="settings-card"><h2>Data & Privacy</h2><p>Saved routes, stops, and display preferences stay on this device. Route data is available offline and checks for updates when you are online.</p><button className="outline-button" type="button" onClick={() => { if (confirm('Remove all saved routes and stops?')) { clearFavorites(); setCleared(true) } }}>Clear Saved Items</button>{cleared && <p className="success-message" role="status">Saved items removed.</p>}<div className="settings-links"><AppLink href="/data">View Data</AppLink><AppLink href="/about">About</AppLink><AppLink href="/privacy">Privacy</AppLink><AppLink href="/contact">Contact</AppLink></div></section></main></>
 }
 
 function MapPage({ id }: { id: string }) {
@@ -383,45 +387,35 @@ function MapPage({ id }: { id: string }) {
 function InfoPage({ kind }: { kind: 'about' | 'privacy' | 'data' | 'share' | 'contact' }) {
   const { data } = useApp()
   const title = { about: 'About', privacy: 'Privacy', data: 'View Data', share: 'Share App', contact: 'Contact Us' }[kind]
-  return <><PageHeader title={title} /><main id="main-content" className="screen content-screen"><article className="info-card"><h1>{title}</h1>{kind === 'about' && <><p>Bus Routes Karachi helps people find routes and stops across the city. This website follows the Android app’s public screens and uses its original bus artwork.</p><p>Find buses between stops, browse by type, view every stop on a route, and save the places you use often.</p><p>The local route snapshot is not a live timetable or vehicle tracker. Confirm important journeys locally because services can change.</p></>}{kind === 'privacy' && <><p>Route searches run in your browser using the bundled data. Favorites, language, and theme are stored in this browser’s local storage.</p><p>This website does not require an account or track your location. Opening Google Maps or your email app uses those services’ own privacy policies.</p></>}{kind === 'data' && <><p><strong>{data.routes.length}</strong> routes and <strong>{data.stops.length}</strong> stops are included in the local data snapshot.</p><p>Route and stop files can be downloaded below. They contain names and route connections, not live positions or times.</p><div className="settings-links"><a href="/data/routes.json" download>Routes data</a><a href="/data/stops.json" download>Stops data</a></div></>}{kind === 'share' && <><p>Share Bus Routes Karachi with another commuter.</p><button className="wide-button" type="button" onClick={() => sharePage('Bus Routes Karachi')}>Share App</button></>}{kind === 'contact' && <><p>Found an error or have a question? Email the project team.</p><a className="wide-button" href="mailto:droidclics@gmail.com">Email Droid Clics</a></>}</article></main></>
+  return <><PageHeader title={title} /><main id="main-content" className="screen content-screen"><article className="info-card"><h1>{title}</h1>{kind === 'about' && <><p>Konsi Bus Karachi helps people find routes and stops across the city. This website follows the Android app’s public screens and uses its original bus artwork.</p><p>Find buses between stops, browse by type, view every stop on a route, and save the places you use often.</p><p>Routes can update from the original app's database when you are online. This is not a live timetable or vehicle tracker. Confirm important journeys locally because services can change.</p></>}{kind === 'privacy' && <><p>Route searches run in your browser using the bundled data. Favorites, language, and theme are stored in this browser’s local storage.</p><p>Browsing does not require sign-in, and the app does not track your location. Sending a report or route suggestion creates an anonymous Firebase session. Your message and a session identifier are sent to the project team; route suggestions are reviewed before publication. Reviews are sent to the original app's reviews service and may be public, with an installation identifier used to limit repeated submissions. Opening Google Maps or your email app uses those services’ own privacy policies.</p></>}{kind === 'data' && <><p><strong>{data.routes.length}</strong> routes and <strong>{data.stops.length}</strong> stops are available in the current route data.</p><p>The bundled route and stop files can be downloaded below. They contain names and route connections, not live positions or times.</p><div className="settings-links"><a href="/data/routes.json" download>Routes data</a><a href="/data/stops.json" download>Stops data</a></div><DataSyncControls /></>}{kind === 'share' && <><p>Share Konsi Bus Karachi with another commuter.</p><button className="wide-button" type="button" onClick={() => sharePage('Konsi Bus Karachi')}>Share App</button></>}{kind === 'contact' && <><p>Found an error or have a question? Email the project team.</p><a className="wide-button" href="mailto:droidclics@gmail.com">Email Droid Clics</a></>}</article></main></>
 }
 
-function ContributionPage({ type }: { type: 'route' | 'feedback' | 'experience' | 'review'; routeId?: string }) {
-  const title = { route: 'Add Missing Route', feedback: 'Feedback', experience: 'Share Experience', review: 'Route Review' }[type]
-  const [name, setName] = useState('')
-  const [busType, setBusType] = useState('bus')
-  const [details, setDetails] = useState('')
-  const [rating, setRating] = useState(5)
-  const [error, setError] = useState('')
-  function submit(event: FormEvent) {
-    event.preventDefault()
-    if (!details.trim() || (type === 'route' && !name.trim())) { setError('Enter the requested details before continuing.'); return }
-    const subject = type === 'route' ? `Route suggestion: ${name}` : `${title} for Bus Routes Karachi`
-    const body = [`Name: ${name || 'Not provided'}`, `Bus type: ${typeName(busType)}`, `Rating: ${rating}/5`, '', details].join('\n')
-    location.href = `mailto:droidclics@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-  }
-  return <><PageHeader title={title} /><main id="main-content" className="screen content-screen"><div className="screen-intro"><h1>{title}</h1><p>{type === 'route' ? 'Help the community by sharing a route missing from the list.' : 'Tell the project team what happened or what should be improved.'}</p></div><form className="contribution-card" onSubmit={submit}>{type === 'route' && <><label>Bus or route name<input value={name} onChange={event => setName(event.target.value)} placeholder="For example, Route 10" maxLength={100} /></label><label>Bus type<select value={busType} onChange={event => setBusType(event.target.value)}>{busTypes.map(item => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label></>}{(type === 'experience' || type === 'review') && <label>Rating<select value={rating} onChange={event => setRating(Number(event.target.value))}>{[5, 4, 3, 2, 1].map(value => <option key={value} value={value}>{value} stars</option>)}</select></label>}<label>{type === 'route' ? 'Stops and other details' : 'Your message'}<textarea value={details} onChange={event => setDetails(event.target.value)} rows={7} maxLength={3000} placeholder={type === 'route' ? 'List the starting point, destination, and stops you know.' : 'Write the details here.'} /></label>{error && <p className="form-error" role="alert">{error}</p>}<p className="form-help">Continue opens your email app with these details ready to send.</p><button type="submit" className="wide-button">Continue to Email</button></form></main></>
+function ContributionPage({ type, routeId }: { type: 'route' | 'feedback' | 'experience'; routeId?: string }) {
+  const { data } = useApp()
+  const route = routeId ? data.routeById.get(routeId) : undefined
+  if (routeId && !route) return <NotFound />
+  const title = type === 'route' ? 'Add Missing Route' : type === 'experience' ? 'Share Experience' : route ? 'Report Route Issue' : 'Feedback'
+  return <><PageHeader title={title} /><main id="main-content" className="screen content-screen"><div className="screen-intro"><h1>{title}</h1><p>{type === 'route' ? 'Help the community by sharing a route missing from the list.' : route ? `Tell us what needs updating on ${route.name}.` : 'Share your experience or help the project team improve the app.'}</p></div>{type === 'experience' ? <ReviewComposer /> : <ContributionForm key={routeId || type} routeId={routeId} isRoute={type === 'route'} />}</main></>
 }
 
 function ReviewsPage({ id }: { id: string }) {
   const { data } = useApp()
   const route = data.routeById.get(id)
   if (!route) return <NotFound />
-  return <><PageHeader title="Route Reviews" /><main id="main-content" className="screen content-screen"><div className="screen-intro"><h1>{route.name} Reviews</h1><p>Share your experience with this route.</p></div><div className="empty-state"><strong>Live reviews are unavailable on this website</strong><p>You can still send your experience to the project team.</p><AppLink href="/experience">Share Experience</AppLink></div></main></>
+  return <><PageHeader title="Route Reviews" /><main id="main-content" className="screen content-screen"><div className="screen-intro"><h1>{route.name} Reviews</h1><p>Read passenger experiences and share your own.</p></div><ReviewsPanel key={id} routeId={id} /></main></>
+}
+
+function DataSyncControls() {
+  const [status, setStatus] = useState(getDataSyncStatus)
+  useEffect(() => subscribeDataSync(() => setStatus(getDataSyncStatus())), [])
+  const label = status.phase === 'checking' ? 'Checking for route updates?' : status.phase === 'offline' ? 'Using saved routes. Connect to the internet to check for updates.' : status.source === 'online' ? 'Route information is up to date.' : 'Using saved route information.'
+  return <div className="data-sync-controls"><p role="status">{label}</p>{status.updatedAt && <p>Last updated: {new Date(status.updatedAt).toLocaleString()}</p>}<button type="button" className="outline-button" disabled={status.phase === 'checking'} onClick={() => void refreshData()}>Check for Updates</button></div>
 }
 
 function NotFound() {
   return <><PageHeader title="Not Found" /><main id="main-content" className="screen content-screen"><div className="empty-state"><h1>Page not found</h1><p>The route or stop may have changed.</p><AppLink href="/">Go Home</AppLink></div></main></>
 }
 
-async function sharePage(title: string) {
-  if (navigator.share) {
-    try { await navigator.share({ title, url: location.href }); return } catch { /* Share sheet was dismissed. */ }
-  }
-  if (navigator.clipboard) {
-    try { await navigator.clipboard.writeText(location.href); alert('Link copied to clipboard.') } catch { /* Browser clipboard unavailable. */ }
-  }
-}
 
 function ScreenRouter() {
   const path = location.pathname
@@ -430,9 +424,13 @@ function ScreenRouter() {
   if (parts[0] === 'buses') return <BusList type={parts[1]} />
   if (parts[0] === 'plan') return <PlanPage />
   if (parts[0] === 'stops') return <StopsPage />
-  if (parts[0] === 'stop' && parts[1]) return <StopDetail id={decodeURIComponent(parts[1])} />
+  if (parts[0] === 'stop' && parts[1]) {
+    const id = pathId(parts[1])
+    return id ? <StopDetail id={id} /> : <NotFound />
+  }
   if (parts[0] === 'route' && parts[1]) {
-    const id = decodeURIComponent(parts[1])
+    const id = pathId(parts[1])
+    if (!id) return <NotFound />
     if (parts[2] === 'stops') return <RouteStops id={id} />
     if (parts[2] === 'map') return <MapPage id={id} />
     if (parts[2] === 'reviews') return <ReviewsPage id={id} />
@@ -441,7 +439,7 @@ function ScreenRouter() {
   if (parts[0] === 'favorites') return <FavoritesPage />
   if (parts[0] === 'settings') return <SettingsPage />
   if (parts[0] === 'add-route') return <ContributionPage type="route" />
-  if (parts[0] === 'feedback') return <ContributionPage type="feedback" />
+  if (parts[0] === 'feedback') return <ContributionPage type="feedback" routeId={new URLSearchParams(location.search).get('route') || undefined} />
   if (parts[0] === 'experience') return <ContributionPage type="experience" />
   if (parts[0] === 'about' || parts[0] === 'privacy' || parts[0] === 'data' || parts[0] === 'share' || parts[0] === 'contact') return <InfoPage kind={parts[0]} />
   return <NotFound />
@@ -453,23 +451,32 @@ export default function App() {
   const [path, setPath] = useState(location.pathname + location.search)
   const [language, updateLanguage] = useState<Language>(() => stored('brk-web-language', 'en'))
   const [theme, updateTheme] = useState<Theme>(() => stored('brk-web-theme', 'light'))
-  const [favorites, setFavorites] = useState<Favorites>(() => stored('brk-web-favorites', { routes: [], stops: [] }))
+  const [favorites, setFavorites] = useState<Favorites>(() => savedFavorites(stored<unknown>('brk-web-favorites', null)))
 
   useEffect(() => {
     let active = true
-    loadData().then(value => { if (active) setData(value) }).catch(() => { if (active) setLoadError('Route data could not load. Refresh the page to try again.') })
+    const stopUpdates = subscribeData(value => { if (active) setData(value) })
+    loadData().then(value => { if (active) setData(value); void refreshData() }).catch(() => { if (active) setLoadError('Route data could not load. Refresh the page to try again.') })
     const update = () => setPath(location.pathname + location.search)
     window.addEventListener('popstate', update)
     window.addEventListener('brk:navigate', update)
-    return () => { active = false; window.removeEventListener('popstate', update); window.removeEventListener('brk:navigate', update) }
+    const checkOnline = () => { if (document.visibilityState === 'visible') void refreshData() }
+    window.addEventListener('online', checkOnline)
+    document.addEventListener('visibilitychange', checkOnline)
+    return () => { active = false; stopUpdates(); window.removeEventListener('popstate', update); window.removeEventListener('brk:navigate', update); window.removeEventListener('online', checkOnline); document.removeEventListener('visibilitychange', checkOnline) }
   }, [])
 
   useEffect(() => {
-    const effective = theme === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme
-    document.documentElement.dataset.theme = effective
-    document.documentElement.lang = language === 'ur' ? 'ur' : 'en'
     localStorage.setItem('brk-web-theme', JSON.stringify(theme))
-  }, [theme, language])
+    if (theme === 'system') return watchSystemTheme(dark => {
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+    })
+    document.documentElement.dataset.theme = theme
+  }, [theme])
+
+  useEffect(() => {
+    document.documentElement.lang = language === 'ur' ? 'ur' : 'en'
+  }, [language])
 
   useEffect(() => {
     if (!data) return
@@ -515,8 +522,8 @@ export default function App() {
     localStorage.setItem('brk-web-favorites', JSON.stringify(empty))
   }
 
-  if (loadError) return <div className="startup-message" role="alert"><img src="/images/app-icon.png" alt="" /><h1>Bus Routes Karachi</h1><p>{loadError}</p><button type="button" onClick={() => location.reload()}>Try Again</button></div>
-  if (!data) return <div className="startup-message" role="status"><img src="/images/app-icon.png" alt="" /><h1>Bus Routes Karachi</h1><p>Loading routes and stops…</p></div>
+  if (loadError) return <div className="startup-message" role="alert"><img src="/images/ic_konsi_bus_karachi.svg" alt="" /><h1>Konsi Bus Karachi</h1><p>{loadError}</p><button type="button" onClick={() => location.reload()}>Try Again</button></div>
+  if (!data) return <div className="startup-message" role="status"><img src="/images/ic_konsi_bus_karachi.svg" alt="" /><h1>Konsi Bus Karachi</h1><p>Loading routes and stops…</p></div>
 
   const value: AppState = { data, language, setLanguage, theme, setTheme, favorites, toggleFavorite, clearFavorites }
   return <Context.Provider value={value}><a className="skip-link" href="#main-content">Skip to content</a><div className="app-shell" data-path={path}><ScreenRouter /><BottomNav /></div></Context.Provider>
