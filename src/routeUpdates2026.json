@@ -1,5 +1,5 @@
 {
-  "revision": "smta-2026-10-22-v1",
+  "revision": "public-routes-2026-10-22-v2",
   "checkedOn": "2026-10-22",
   "directoryUrl": "https://smta.gos.pk/route-map",
   "stopRows": [
@@ -17,7 +17,11 @@
     "smta_x20@X-20@",
     "smta_malir_phase2@Phase 2 Malir Cantt@",
     "smta_askari5@Askari 5@",
-    "smta_allahwala_malir@Allahwala Chowk Malir Cantt@"
+    "smta_allahwala_malir@Allahwala Chowk Malir Cantt@",
+    "community_zakaria_goth@Zakaria Goth (near Toll Plaza)@",
+    "community_younus_landhi@Younus Chowrangi, Landhi@",
+    "community_hospital_landhi@Hospital Chowrangi, Landhi@",
+    "community_labour_square_landhi@Labour Square, Landhi@"
   ],
   "changes": [
     {
@@ -46,7 +50,10 @@
       "note": "Published stops and areas; Lalukhait mapped to existing Liaqatabad stop. Not an exhaustive boarding-stop inventory.",
       "previousRow": null,
       "previousStops": null,
-      "publishedCoverage": true
+      "publishedCoverage": true,
+      "publisher": "SMTA",
+      "sourceDate": null,
+      "currentOperationConfirmed": true
     },
     {
       "id": "ev04",
@@ -67,7 +74,10 @@
       "note": "Current published corridor ends at Ayesha Manzil; M9 is a road corridor, not an added boarding stop.",
       "previousRow": "ev04@EV-4@ای وی 4@ev@opr@S0045@S0335",
       "previousStops": "S0045, S0110, S0254, S0326, S0506, S0528, S0560, S0021, S0434, S0468, S0032, S0196, S0250, S0093, S0451, S0176, S0335",
-      "publishedCoverage": true
+      "publishedCoverage": true,
+      "publisher": "SMTA",
+      "sourceDate": null,
+      "currentOperationConfirmed": true
     },
     {
       "id": "doubledecker1",
@@ -92,7 +102,10 @@
       "note": "Use endpoint plus ordered detail entries. The introductory via Malir Halt is duplicated by its ordered entry; retain that one entry after Model Colony Pathak.",
       "previousRow": "doubledecker1@Double Decker 1@Double Decker 1@dd@opr@S0265@S0571",
       "previousStops": "S0265, S0471, S0077, S0091, S0314, S0108, S0199, S0347, S0031, S0048, S0233, S0336, S0139, S0571",
-      "publishedCoverage": true
+      "publishedCoverage": true,
+      "publisher": "SMTA",
+      "sourceDate": null,
+      "currentOperationConfirmed": true
     },
     {
       "id": "route02",
@@ -131,7 +144,10 @@
       "note": "Retain detailed existing stops and append published Korangi Crossing terminus. Pink alias keeps its existing ID.",
       "previousRow": "route02@Route 2@روٹ 2@red@opr@S0369@S0173",
       "previousStops": "S0369, S0462, S0310, S0413, S0434, S0252, S0171, S0148, S0328, S0024, S0287, S0028, S0108, S0314, S0091, S0423, S0414, S0559, S0207, S0243, S0242, S0241, S0240, S0152, S0313, S0105, S0173",
-      "publishedCoverage": false
+      "publishedCoverage": false,
+      "publisher": "SMTA",
+      "sourceDate": null,
+      "currentOperationConfirmed": true
     },
     {
       "id": "pink02",
@@ -170,7 +186,10 @@
       "note": "Retain detailed existing stops and append published Korangi Crossing terminus. Pink alias keeps its existing ID.",
       "previousRow": "pink02@Pink 2@پنک 2@pink@opr@S0369@S0173",
       "previousStops": "S0369, S0462, S0310, S0413, S0434, S0252, S0171, S0148, S0328, S0024, S0287, S0028, S0108, S0314, S0091, S0423, S0414, S0559, S0207, S0243, S0242, S0241, S0240, S0152, S0313, S0105, S0173",
-      "publishedCoverage": false
+      "publishedCoverage": false,
+      "publisher": "SMTA",
+      "sourceDate": null,
+      "currentOperationConfirmed": true
     },
     {
       "id": "route03",
@@ -215,7 +234,10 @@
       "note": "Retain detailed existing stops and append published Nasir Jump terminus. Pink alias keeps its existing ID.",
       "previousRow": "route03@Route 3@روٹ 3@red@opr@S0369@S0424",
       "previousStops": "S0369, S0462, S0310, S0114, S0402, S0123, S0165, S0202, S0066, S0320, S0319, S0321, S0250, S0115, S0158, S0315, S0272, S0204, S0347, S0031, S0048, S0122, S0233, S0336, S0129, S0193, S0331, S0444, S0231, S0172, S0069, S0436, S0424",
-      "publishedCoverage": false
+      "publishedCoverage": false,
+      "publisher": "SMTA",
+      "sourceDate": null,
+      "currentOperationConfirmed": true
     },
     {
       "id": "pink03",
@@ -260,7 +282,10 @@
       "note": "Retain detailed existing stops and append published Nasir Jump terminus. Pink alias keeps its existing ID.",
       "previousRow": "pink03@Pink 3@پنک 3@pink@opr@S0369@S0424",
       "previousStops": "S0369, S0462, S0310, S0114, S0402, S0123, S0165, S0202, S0066, S0320, S0319, S0321, S0250, S0115, S0158, S0315, S0272, S0204, S0347, S0031, S0048, S0122, S0233, S0336, S0129, S0193, S0331, S0444, S0231, S0172, S0069, S0436, S0424",
-      "publishedCoverage": false
+      "publishedCoverage": false,
+      "publisher": "SMTA",
+      "sourceDate": null,
+      "currentOperationConfirmed": true
     },
     {
       "id": "route04",
@@ -290,7 +315,10 @@
       "note": "Current published Guru Mandar, Numaish, Taj Complex, Sindh High Court, Tower, Jackson Market and Keamari corridor; replace conflicting old Tibet Center branch. Earlier minor stops before Guru Mandar retained where the corridor agrees.",
       "previousRow": "route04@Route 4@روٹ 4@red@opr@S0369@S0456",
       "previousStops": "S0369, S0462, S0310, S0413, S0434, S0468, S0032, S0196, S0250, S0093, S0451, S0176, S0335, S0455, S0292, S0380, S0180, S0084, S0080, S0068, S0456",
-      "publishedCoverage": false
+      "publishedCoverage": false,
+      "publisher": "SMTA",
+      "sourceDate": null,
+      "currentOperationConfirmed": true
     },
     {
       "id": "ev03",
@@ -322,7 +350,45 @@
       "note": "Prefix published Malir Cantt areas before existing Check Post 5 sequence. New names do not imply precise boarding coordinates.",
       "previousRow": "ev03@EV-3@ای وی 3@ev@opr@S0261@S0335",
       "previousStops": "S0261, S0399, S0299, S0194, S0189, S0190, S0287, S0522, S0518, S0315, S0015, S0504, S0537, S0177, S0099, S0335",
-      "publishedCoverage": false
+      "publishedCoverage": false,
+      "publisher": "SMTA",
+      "sourceDate": null,
+      "currentOperationConfirmed": true
+    },
+    {
+      "id": "mshuttle",
+      "row": "mshuttle@M Shuttle@ایم (M) شٹل@coach@opr@community_zakaria_goth@community_labour_square_landhi",
+      "stops": [
+        "community_zakaria_goth",
+        "S0254",
+        "S0261",
+        "S0262",
+        "S0449",
+        "S0293",
+        "S0410",
+        "S0265",
+        "S0192",
+        "S0259",
+        "S0266",
+        "S0308",
+        "S0302",
+        "S0378",
+        "S0271",
+        "community_younus_landhi",
+        "community_hospital_landhi",
+        "community_labour_square_landhi"
+      ],
+      "sourceUrl": "https://www.facebook.com/groups/231328515715409/posts/1059674562880796/",
+      "publisher": "Community route report",
+      "sourceDate": "2025-04-07",
+      "currentOperationConfirmed": false,
+      "corroboratingSources": [
+        "https://sites.google.com/view/routestoaccess/route-maps-and-shapefiles/unstructured-buses"
+      ],
+      "note": "User-supplied Facebook post dated7April2025 reports ZakariaGoth/TollPlaza to LabourSquareLandhi. Independent RoutesToAccess mapping corroborates TollPlaza-LabourSquareLandhi endpoints but has no visible survey date. Detailed earlier stops retained along the shared corridor; former CP2 starting branch removed. Current operation, frequencies, exact boarding points and complete minor-stop inventory not confirmed. Distinct Landhi locality IDs avoid conflating generic LabourSquare used elsewhere in the legacy dataset.",
+      "previousRow": "mshuttle@M Shuttle@ایم (M) شٹل@coach@opr@S0567@S0378",
+      "previousStops": "S0567, S0261, S0262, S0449, S0293, S0410, S0265, S0192, S0259, S0266, S0308, S0302, S0378",
+      "publishedCoverage": true
     }
   ],
   "excludedInactive": [
@@ -339,6 +405,7 @@
     "Source is current directory checked on this date; no claim all routes launched during 2026.",
     "Official lists describe stops and areas, not exhaustive physical boarding stops.",
     "Linked PDF is dated 2025-01-01 and is not used as 2026 launch evidence.",
-    "New fleet announcements without published operating routes were not added."
+    "New fleet announcements without published operating routes were not added.",
+    "M Shuttle uses a2025communityreport with independent endpoint corroboration; it is not a newly launched or operationally verified2026service."
   ]
 }

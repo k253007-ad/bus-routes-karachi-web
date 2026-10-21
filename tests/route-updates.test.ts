@@ -48,6 +48,20 @@ test('R4 serves the published Guru Mandir, Taj Complex and High Court corridor',
   assert.ok(!data.stopsOnRoute.route04.split(', ').includes('S0455'), 'old Tibet Center branch must not replace current published corridor')
 })
 
+test('M Shuttle reported extension has distinct Landhi stops and explicit older community provenance', async () => {
+  const data = normalizeTransitData(mergeRouteUpdates(await snapshot(), updates))
+  const route = data.routeById.get('mshuttle')!
+  assert.equal(route.firstStop, 'community_zakaria_goth')
+  assert.equal(route.lastStop, 'community_labour_square_landhi')
+  assert.ok(findDirectRoutes(data, 'S0254', route.lastStop).some(value => value.id === 'mshuttle'))
+  assert.ok(!data.stopsOnRoute.mshuttle.split(', ').includes('S0232'), 'generic Labour Square must not stand in for the specifically reported Landhi stop')
+  assert.equal(data.stopById.get(route.lastStop)?.name, 'Labour Square, Landhi')
+  const source = updates.changes.find(value => value.id === 'mshuttle')!
+  assert.equal(source.publisher, 'Community route report')
+  assert.equal(source.sourceDate, '2025-04-07')
+  assert.equal(source.currentOperationConfirmed, false)
+})
+
 test('older online and saved Firebase snapshots cannot remove reviewed route updates', async () => {
   const current = await snapshot()
   const rows = new Map((current.routes as string[]).map(row => [row.split('@')[0], row]))

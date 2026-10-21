@@ -24,7 +24,7 @@ Set the project root directory to `website`. The included `vercel.json` selects 
 - `public/images/`: artwork converted from Android VectorDrawables. Run `python scripts/convert_android_vectors.py` to regenerate it.
 - `public/data/`: local route snapshot. Run `python refresh_data.py` to refresh the public dataset after validation.
 
-The local data contains 66 route entries and 586 stops/areas after the SMTA review on 22 October 2026. It is not a live timetable or vehicle position feed. Saved items and display preferences stay on the device. The website and Android app share direct Firebase contribution forms, route updates, and the reviews client. Contributions are not queued offline. Live submissions need a Firebase Web key and the coordinated security-rule migration; reviews need the owner to restore HTTPS/CORS. See [BACKEND.md](BACKEND.md) for the verified service status. The in-page map needs a Maps key; without one it offers a Google Maps link.
+The local data contains 66 route entries and 590 stops/areas after the SMTA review on 22 October 2026. It is not a live timetable or vehicle position feed. Saved items and display preferences stay on the device. The website and Android app share direct Firebase contribution forms, route updates, and the reviews client. Contributions are not queued offline. Live submissions need a Firebase Web key and the coordinated security-rule migration; reviews need the owner to restore HTTPS/CORS. See [BACKEND.md](BACKEND.md) for the verified service status. The in-page map needs a Maps key; without one it offers a Google Maps link.
 
 ## Google Maps directions
 
@@ -73,3 +73,5 @@ lookup index. `python refresh_data.py` fetches a version-consistent Firebase
 snapshot, reapplies the corrections and rebuilds indexes. A pre-change ZIP stays
 in ignored `.route-backups/`. The correction file records previous rows/sequences
 for review. No production database is modified by these scripts.
+
+M Shuttle additionally uses the user-supplied 7 April 2025 community report, with endpoint corroboration from Routes To Access. Its route screen explicitly states that current operation is unconfirmed. This is a reported correction to an existing service, not a new2026bus launch.

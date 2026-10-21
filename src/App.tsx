@@ -126,6 +126,11 @@ function FavoriteButton({ kind, id, className = '' }: { kind: keyof Favorites; i
   return <button className={`favorite-button ${saved ? 'is-saved' : ''} ${className}`} type="button" aria-pressed={saved} aria-label={`${saved ? 'Remove saved' : 'Save'} ${nameOf(item, language)}`} onClick={event => { event.stopPropagation(); toggleFavorite(kind, id) }}><Icons name="star" size={22} /></button>
 }
 
+function CommunityRouteLabel({ id }: { id: string }) {
+  return reviewedRoutes.changes.some(change => change.id === id && change.currentOperationConfirmed === false)
+    ? <small className="community-route-label">Community-reported · check locally</small> : null
+}
+
 function RouteCard({ route, trip }: { route: Route; trip?: { from: Stop; to: Stop } }) {
   const { data, language } = useApp()
   const first = data.stopById.get(route.firstStop)
@@ -133,7 +138,7 @@ function RouteCard({ route, trip }: { route: Route; trip?: { from: Stop; to: Sto
   return <article className="route-card motion-reveal">
     <AppLink href={`/route/${encodeURIComponent(route.id)}`} className="route-card-main">
       <span className="bus-thumb"><img src={routeImage(route)} alt="" loading="lazy" /></span>
-      <span className="route-card-text"><strong>{nameOf(route, language)}</strong><small><Icons name="bus" size={15} /> {typeName(route.type)}</small>{trip ? <span className="route-card-journey">{nameOf(trip.from, language)} → {nameOf(trip.to, language)}</span> : <span className="route-card-journey">{nameOf(first, language)} → {nameOf(last, language)}</span>}</span>
+      <span className="route-card-text"><strong>{nameOf(route, language)}</strong><small><Icons name="bus" size={15} /> {typeName(route.type)}</small><CommunityRouteLabel id={route.id} />{trip ? <span className="route-card-journey">{nameOf(trip.from, language)} → {nameOf(trip.to, language)}</span> : <span className="route-card-journey">{nameOf(first, language)} → {nameOf(last, language)}</span>}</span>
     </AppLink>
     <FavoriteButton kind="routes" id={route.id} />
   </article>
@@ -149,6 +154,7 @@ function DetailedRouteCard({ route }: { route: Route }) {
       <span className="detailed-route-art"><img src={routeImage(route)} alt="" loading="lazy" /></span>
       <span className="detailed-route-content">
         <span className="detailed-route-type">{typeName(route.type)}</span>
+        <CommunityRouteLabel id={route.id} />
         <strong className="detailed-route-name">{nameOf(route, language)}</strong>
         {stopCount > 0 && <span className="detailed-route-count">{stopCount} {stopCount === 1 ? 'stop' : 'stops'} listed</span>}
       </span>
@@ -339,6 +345,7 @@ function StopDetail({ id }: { id: string }) {
 
 function RouteSourceNote({ id }: { id: string }) {
   const source = reviewedRoutes.changes.find(change => change.id === id)
+  if (source?.currentOperationConfirmed === false) return <p className="route-source-note"><strong>Community-reported route.</strong> A <a href={source.sourceUrl} target="_blank" rel="noopener noreferrer">7 April 2025 report</a> describes this coverage. Current service and boarding points are not confirmed. Check locally before travelling.</p>
   return source ? <p className="route-source-note">Updated from <a href={source.sourceUrl} target="_blank" rel="noopener noreferrer">SMTA route information</a>, checked 22 October 2026. Published coverage includes stops and areas; boarding points may differ. Confirm your journey locally.</p> : null
 }
 

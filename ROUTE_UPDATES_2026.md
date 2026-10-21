@@ -17,7 +17,7 @@ a check date, not a claim that every listed route launched during 2026.
 | Route 4 | Correct Guru Mandar?Taj Complex?Sindh High Court corridor; extend through Jackson Market to Keamari | [SMTA R4](https://smta.gos.pk/routes/4) |
 | EV-3 | Add published Malir Cantt areas before the existing Check Post 5 sequence | [SMTA EV-03](https://smta.gos.pk/routes/17) |
 
-Result: **66 route entries, 586 named stops/areas**. Existing private-bus/metro
+Result: **66 route entries, 590 named stops/areas**. Existing private-bus/metro
 routes, route IDs, saved-link compatibility and original bus graphics remain.
 Pink entries are retained aliases; they are not counted as newly discovered routes.
 All reverse membership and pair indexes are regenerated from the reviewed sequence.
@@ -60,3 +60,27 @@ The local data script preserves an ignored pre-change ZIP and rebuilds all index
 `refresh_data.py` checks the remote version before/after download before applying
 the same corrections. Tests cover merge idempotence, preserved IDs, trip membership,
 and protection against an older online/cached snapshot restoring stale routes.
+
+## User-supplied M Shuttle community report
+
+The [Facebook post supplied by the user](https://www.facebook.com/groups/231328515715409/posts/1059674562880796/)
+is dated **7 April 2025**. Its public comment describes M Shuttle from Zakaria
+Goth near the Toll Plaza to Labour Square, Landhi, through Malir Cantt CP5/CP6,
+Tank Chowk, Model Colony Mor, Malir Halt, Kala Board, Malir15, Quaidabad,
+Manzil Pump, Younus Chowrangi and Hospital Chowrangi. The independently mapped
+[Routes To Access entry](https://sites.google.com/view/routestoaccess/route-maps-and-shapefiles/unstructured-buses)
+also gives Toll Plaza?Labour Square, Landhi endpoints, but displays no survey date.
+
+M Shuttle already existed in the app. Its stable mshuttle ID, coach type and
+shared-corridor detail are kept; its reported endpoint extension replaces the
+older CP2?Quaidabad coverage. Four explicit locality names are added. Labour
+Square, Landhi and Hospital Chowrangi, Landhi receive distinct IDs because the
+legacy generic Labour Square entry is shared by geographically inconsistent
+routes and cannot safely identify the reported Landhi location.
+
+This report does **not** establish current2026operation, a new launch, every minor
+stop, frequencies, prices or precise coordinates. The route detail and stops
+screens label it community-reported with the2025source date and an explicit
+current-service caveat. The correction metadata records its separate publisher,
+source date, corroboration link and unconfirmed-current-operation status; it is
+not presented as an SMTA-verified route.
